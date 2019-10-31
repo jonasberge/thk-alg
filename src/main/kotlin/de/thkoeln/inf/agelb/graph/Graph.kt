@@ -47,7 +47,8 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
         private fun assertValidity()
         {
             if (edgeMapping[this] == null)
-                throw InvalidEdgeException("The edge is not part of the graph")
+                throw InvalidEdgeException(
+                    "The edge is not part of the graph anymore")
         }
     }
 
