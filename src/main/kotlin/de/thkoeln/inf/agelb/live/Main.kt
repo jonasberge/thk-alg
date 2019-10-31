@@ -1,4 +1,4 @@
-package de.thkoeln.inf.agelb.livecoding
+package de.thkoeln.inf.agelb.live
 
 fun main() {
     println("Hello TH-Köln! Live at Coding Jam!")
