@@ -5,7 +5,7 @@ import java.util.Stack
 private const val DEFAULT_WEIGHT = 0.0
 
 // TODO: implement the "adjacent" method
-// TODO: implement neighbors "adjacent" method
+// TODO: implement the "neighbors" method
 
 // TODO: use pairs next to first/second and from/to parameters.
 // NOTE: this is just for syntactic sugar, e.g.: graph.connect(1 to 2)
