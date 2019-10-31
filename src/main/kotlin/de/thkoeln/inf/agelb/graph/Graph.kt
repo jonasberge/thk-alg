@@ -10,8 +10,12 @@ private const val DEFAULT_WEIGHT = 0.0
 // TODO: use pairs next to first/second and from/to parameters.
 // NOTE: this is just for syntactic sugar, e.g.: graph.connect(1 to 2)
 
-/** Represents a (mixed) graph (abstract data type). */
-class Graph(verticesExpected: Int = 0, private val incrementSteps: Int = 1)
+/**
+ * Represents a (mixed) graph (abstract data type).
+ * @param vertexCapacity the amount of vertices the graph should be able to hold.
+ * @param incrementSteps the reallocation size of the internal adjacency matrix.
+ */
+class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
 {
     /**
      * Represents an edge of a graph. An instance of this class always
@@ -64,8 +68,8 @@ class Graph(verticesExpected: Int = 0, private val incrementSteps: Int = 1)
     private val vertexIndices = Stack<Int>()
 
     init {
-        require(verticesExpected >= 0) { "Cannot be negative" }
-        growMatrix(verticesExpected)
+        require(vertexCapacity >= 0) { "Capacity cannot be negative" }
+        ensureCapacity(vertexCapacity)
     }
 
     /** The vertices contained in this graph. */
@@ -222,6 +226,16 @@ class Graph(verticesExpected: Int = 0, private val incrementSteps: Int = 1)
             val pair = edgeMapping[edge]!!
             removeEdge(pair.first, pair.second)
         }
+    }
+
+    /**
+     * Ensure that the graph can hold that many vertices.
+     * @param size the amount of vertices.
+     */
+    fun ensureCapacity(size: Int)
+    {
+        if (size > connection.size)
+            growMatrix(connection.size - size)
     }
 
     /**
