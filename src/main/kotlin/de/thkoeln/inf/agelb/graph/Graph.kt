@@ -229,6 +229,32 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
     }
 
     /**
+     * Returns the edge connection two vertices.
+     * @param from the id of the vertex the edge starts at.
+     * @param to the id of the vertex the edge ends at.
+     * @return the connecting edge or null.
+     */
+    fun getEdge(from: Int, to: Int) : Edge?
+    {
+        if (!hasVertex(from) || !hasVertex(to))
+            return null
+
+        val u = vertexIndex(from)!!
+        val v = vertexIndex(to)!!
+
+        return connection[u][v]
+    }
+
+    /**
+     * Checks if two vertices are adjacent i.e. connected with an edge.
+     * @param from the id of the vertex the edge starts at.
+     * @param to the id of the vertex the edge ends at.
+     * @return true if the vertices are adjacent.
+     */
+    fun isAdjacent(from: Int, to: Int) : Boolean
+            = getEdge(from, to) != null
+
+    /**
      * Ensure that the graph can hold that many vertices.
      * @param size the amount of vertices.
      */
