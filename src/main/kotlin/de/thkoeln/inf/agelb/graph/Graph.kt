@@ -144,8 +144,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
 
     /**
      * Connects two vertices through a directed edge.
-     * @param from the id of the vertex the edge starts at.
-     * @param to the id of the vertex the edge ends at.
+     * @see addEdge
      */
     fun addDirectedEdge(from: Int, to: Int, weight: Double = DEFAULT_WEIGHT)
             = addEdge(from, to, weight)
@@ -179,9 +178,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
 
     /**
      * Connects two vertices through an undirected edge.
-     * @param first the id of the first vertex.
-     * @param second the id of the second vertex.
-     * @param weight the weight of the edge.
+     * @see addUndirectedEdge
      */
     fun connect(first: Int, second: Int, weight: Double = DEFAULT_WEIGHT)
             = addUndirectedEdge(first, second, weight)
@@ -240,7 +237,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
     }
 
     /**
-     * Returns the edge connection two vertices.
+     * Returns the edge connecting two vertices.
      * @param from the id of the vertex the edge starts at.
      * @param to the id of the vertex the edge ends at.
      * @return the connecting edge or null.
@@ -255,6 +252,13 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
 
         return connection[u][v]
     }
+
+    /**
+     * Returns the edge between two vertices.
+     * @see getEdge
+     */
+    fun getEdge(between: Pair<Int, Int>)
+            = getEdge(between.first, between.second)
 
     /**
      * Checks if two vertices are adjacent i.e. connected with an edge.
