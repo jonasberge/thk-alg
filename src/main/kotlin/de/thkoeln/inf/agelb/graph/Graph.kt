@@ -261,7 +261,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
     fun ensureCapacity(size: Int)
     {
         if (size > connection.size)
-            growMatrix(connection.size - size)
+            growMatrix(size - connection.size)
     }
 
     /**
