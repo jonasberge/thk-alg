@@ -18,8 +18,8 @@ fun main()
     val b = graph.addEdge(2, 4, 1.2)
 
     val vertex = 2
-    val neighbors = graph.neighbors(vertex)
-    val edges = neighbors?.map { other -> graph.getEdge(vertex, other) }
+    val neighbors = graph.neighborsOf(vertex)
+    val edges = neighbors.map { other -> graph.getEdge(vertex, other) }
 
     graph.removeEdge(b)
 
