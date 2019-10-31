@@ -17,14 +17,16 @@ fun main()
     val a = graph.addUndirectedEdge(2, 3, 2.3)
     val b = graph.addEdge(2, 4, 1.2)
 
-    val edges = graph.edges
+    val vertex = 2
+    val neighbors = graph.neighbors(vertex)
+    val edges = neighbors?.map { other -> graph.getEdge(vertex, other) }
 
     graph.removeEdge(b)
 
     val edge = b
-    val _isDirected = edge.isDirected
-    val _from = edge.from
-    val _to = edge.to
+    //val _isDirected = edge.isDirected
+    //val _from = edge.from
+    //val _to = edge.to
 
     val x = 1
 
