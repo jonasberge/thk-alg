@@ -1,5 +1,6 @@
 package de.thkoeln.inf.agelb.graph
 
+import java.lang.Exception
 import java.util.Stack
 
 private const val DEFAULT_WEIGHT = 0.0
@@ -21,32 +22,28 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
     inner class Edge(var weight: Double = DEFAULT_WEIGHT)
     {
         val vertices : Pair<Int, Int>
-            get() {
-                assertValidity()
-                return edgeMapping[this]!!
-            }
+            get() = volatile { edgeMapping[this]!! }
 
         val from: Int get() = vertices.first
         val to: Int get() = vertices.second
 
         val isDirected: Boolean
             get() {
-                assertValidity()
-                val u = vertexIndex(from)!!
-                val v = vertexIndex(to)!!
+                val u = volatile { vertexIndex(from)!! }
+                val v = volatile { vertexIndex(to)!! }
                 return connection[u][v] != connection[v][u]
             }
 
         /**
-         * Asserts that this edge is valid and still part of the graph.
-         * @throws Exception if the edge was removed from the graph.
+         * Should be used for the execution of code that might cause an
+         * exception whenever the current edge is removed from the graph.
+         * @param f lambda containing the volatile code
          */
-        private fun assertValidity()
-        {
-            if (edgeMapping[this] == null)
-                throw InvalidEdgeException(
-                    "The edge is not part of the graph anymore")
-        }
+        private fun <T> volatile(f: () -> T) =
+            try { f() }
+            catch (e: Exception) {
+                throw InvalidEdgeException("The edge was removed from the graph")
+            }
     }
 
     /**
