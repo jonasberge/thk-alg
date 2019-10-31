@@ -120,7 +120,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
     /**
      * Checks if the graph contains a vertex.
      * @param id the id of the vertex.
-     * @return a value indicating if the graph contains the vertex.
+     * @return true if the graph contains the vertex.
      */
     fun hasVertex(id: Int) = id in vertexMapping
 
