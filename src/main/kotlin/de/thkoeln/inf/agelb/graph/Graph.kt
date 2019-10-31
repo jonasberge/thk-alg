@@ -222,7 +222,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
         }
     }
 
-    fun neighbors(vertex: Int) : Set<Int>?
+    fun neighborsOf(vertex: Int) : Set<Int>?
     {
         if (!hasVertex(vertex))
             return null
