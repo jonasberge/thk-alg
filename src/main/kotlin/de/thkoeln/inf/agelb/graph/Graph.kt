@@ -228,6 +228,20 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
         }
     }
 
+    fun neighbors(vertex: Int) : Set<Int>?
+    {
+        if (!hasVertex(vertex))
+            return null
+
+        val index = vertexIndex(vertex)!!
+        val result = mutableSetOf<Int>()
+        for ((other, k) in vertexMapping)
+            if (connection[index][k] != null)
+                result.add(other)
+
+        return result
+    }
+
     /**
      * Returns the edge connection two vertices.
      * @param from the id of the vertex the edge starts at.
