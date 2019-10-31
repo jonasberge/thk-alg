@@ -82,7 +82,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
 
     /**
      * Adds a vertex to the graph.
-     * @param id The id of the vertex.
+     * @param id the id of the vertex.
      */
     fun addVertex(id: Int)
     {
@@ -97,7 +97,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
 
     /**
      * Removes a vertex from the graph.
-     * @param id The id of the vertex.
+     * @param id the id of the vertex.
      */
     fun removeVertex(id: Int)
     {
@@ -159,8 +159,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
      * @param weight the weight of the edge.
      */
     fun addUndirectedEdge(first: Int, second: Int,
-                          weight: Double = DEFAULT_WEIGHT
-    ) : Edge
+                          weight: Double = DEFAULT_WEIGHT) : Edge
     {
         val u = assureVertex(first)
         val v = assureVertex(second)
