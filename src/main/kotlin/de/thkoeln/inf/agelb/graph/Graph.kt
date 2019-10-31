@@ -227,10 +227,10 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
      * @param vertex the id of the vertex.
      * @return a set of vertices (ids).
      */
-    fun neighborsOf(vertex: Int) : Set<Int>?
+    fun neighborsOf(vertex: Int) : Set<Int>
     {
         if (!hasVertex(vertex))
-            return null
+            return setOf()
 
         val index = vertexIndex(vertex)!!
         val result = mutableSetOf<Int>()
