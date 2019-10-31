@@ -222,6 +222,11 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
         }
     }
 
+    /**
+     * Retrieves the vertices that are connected to this vertex through an edge.
+     * @param vertex the id of the vertex.
+     * @return a set of vertices (ids).
+     */
     fun neighborsOf(vertex: Int) : Set<Int>?
     {
         if (!hasVertex(vertex))
@@ -235,6 +240,13 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
 
         return result
     }
+
+    /**
+     * Retrieves the vertices that are connected to this vertex through an edge.
+     * @see neighborsOf
+     */
+    fun neighboursOf(vertex: Int)
+            = neighborsOf(vertex)
 
     /**
      * Returns the edge connecting two vertices.
