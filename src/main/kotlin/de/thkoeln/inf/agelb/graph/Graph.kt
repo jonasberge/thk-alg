@@ -36,7 +36,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
 
         /**
          * Should be used for the execution of code that might cause an
-         * exception whenever the current edge is removed from the graph.
+         * exception after the current edge has been removed from the graph.
          * @param f lambda containing the volatile code
          */
         private fun <T> volatile(f: () -> T) =
