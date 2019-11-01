@@ -76,7 +76,8 @@ class MSTKruskal(sourceGraph: Graph): MSTStrategy(sourceGraph) {
     override fun mst(): Graph? {
         val sortedEdges = sourceGraph.edges.sortedBy { it.weight }
         val unionFind = UnionFind(sourceGraph.vertices)
-        val newGraph = Graph()
+        val mstGraph = Graph()
+        var mstCost = 0.0
 
         for (edge in sortedEdges) {
             // skip edges that would create a cycle
@@ -85,8 +86,10 @@ class MSTKruskal(sourceGraph: Graph): MSTStrategy(sourceGraph) {
             // unite vertices in unionFind
             unionFind.union(edge.from, edge.to)
 
+            mstCost += edge.weight
+
             // add edge to new graph
-            newGraph.addUndirectedEdge(edge.from, edge.to, edge.weight)
+            mstGraph.addUndirectedEdge(edge.from, edge.to, edge.weight)
 
             // stop early if mst is already done
             if(unionFind.biggestSetSize == unionFind.size) break
@@ -94,7 +97,7 @@ class MSTKruskal(sourceGraph: Graph): MSTStrategy(sourceGraph) {
 
         // check if mst includes all nodes
         if(unionFind.biggestSetSize != unionFind.size) return null
-
-        return newGraph
+        
+        return mstGraph
     }
 }
