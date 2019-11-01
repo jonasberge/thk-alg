@@ -4,7 +4,7 @@ import de.thkoeln.inf.agelb.graph.Graph
 
 class MSTKruskal(sourceGraph: Graph): MSTStrategy(sourceGraph) {
 
-    internal class UnionFind(elements: Set<Int>) {
+    private class UnionFind(elements: Set<Int>) {
         private val parentMap = hashMapOf<Int, Int>()
         private val sizeMap = hashMapOf<Int, Int>()
         private var count = 0
@@ -79,10 +79,13 @@ class MSTKruskal(sourceGraph: Graph): MSTStrategy(sourceGraph) {
         val newGraph = Graph()
 
         for (edge in sortedEdges) {
-            // skip cycle building edges
+            // skip edges that would create a cycle
             if(unionFind.connected(edge.from, edge.to)) continue
 
+            // unite vertices in unionFind
             unionFind.union(edge.from, edge.to)
+
+            // add edge to new graph
             newGraph.addUndirectedEdge(edge.from, edge.to, edge.weight)
 
             // stop early if mst is already done
