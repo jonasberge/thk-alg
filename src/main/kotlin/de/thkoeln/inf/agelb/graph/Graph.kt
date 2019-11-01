@@ -248,6 +248,13 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
             = neighborsOf(vertex)
 
     /**
+     * Retrieves the edges this vertex is connected to.
+     * @param vertex the id of the vertex.
+     * @return a set of edges.
+     */
+    fun edgesFrom(vertex: Int): Set<Edge> = neighborsOf(vertex).mapNotNull { other -> getEdge(vertex to other) }.toSet()
+
+    /**
      * Returns the edge connecting two vertices.
      * @param from the id of the vertex the edge starts at.
      * @param to the id of the vertex the edge ends at.
