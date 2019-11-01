@@ -45,6 +45,12 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
                 throw InvalidEdgeException("The edge was removed from the graph")
             }
 
+        /**
+         * Compares this weight with the specified edges weight for order.
+         * Returns zero if the value is equal to the specified other value, a negative number if it's less than other,
+         * or a positive number if it's greater than other.
+         * @param other another edge to compare with
+         */
         override fun compareTo(other: Edge): Int = weight.compareTo(other.weight)
     }
 
