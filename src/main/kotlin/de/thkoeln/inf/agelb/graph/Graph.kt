@@ -19,7 +19,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
      * Represents an edge of a graph. An instance of this class always
      * belongs to the the graph it was created in throughout its life time.
      */
-    inner class Edge(var weight: Double = DEFAULT_WEIGHT)
+    inner class Edge(var weight: Double = DEFAULT_WEIGHT): Comparable<Edge>
     {
         val vertices : Pair<Int, Int>
             get() = volatile { edgeMapping[this]!! }
@@ -44,6 +44,8 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
             catch (e: Exception) {
                 throw InvalidEdgeException("The edge was removed from the graph")
             }
+
+        override fun compareTo(other: Edge): Int = weight.compareTo(other.weight)
     }
 
     /**
