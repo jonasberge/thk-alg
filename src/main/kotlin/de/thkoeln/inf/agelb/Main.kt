@@ -1,57 +1,23 @@
 package de.thkoeln.inf.agelb
 
 import de.thkoeln.inf.agelb.graph.Graph
+import de.thkoeln.inf.agelb.graph.mst.MSTKruskal
 
 fun main()
 {
-    var graph = Graph(2, 2)
+    val graph = Graph(2, 2)
 
-    val vertices = graph.vertices
+    graph.addUndirectedEdge(1, 2, 2.3)
+    graph.addUndirectedEdge(2, 3, 1.2)
+    graph.addUndirectedEdge(3, 4, 5.2)
+    graph.addUndirectedEdge(4, 2, 5.2)
+    graph.addUndirectedEdge(4, 1, 6.2)
+    graph.addUndirectedEdge(5, 1, 7.2)
+    graph.addUndirectedEdge(5, 2, 7.2)
+    graph.addUndirectedEdge(5, 3, 10.2)
+    graph.addUndirectedEdge(5, 4, 1.2)
 
-    graph.addVertex(1)
-    graph.addVertex(2)
-    graph.addVertex(3)
-    graph.removeVertex(1)
-    graph.addVertex(4)
-
-    val a = graph.addUndirectedEdge(2, 3, 2.3)
-    val b = graph.addEdge(2, 4, 1.2)
-
-    val vertex = 2
-    val neighbors = graph.neighborsOf(vertex)
-    val edges = neighbors.map { other -> graph.getEdge(vertex, other) }
-
-    graph.removeEdge(b)
-
-    val edge = b
-    //val _isDirected = edge.isDirected
-    //val _from = edge.from
-    //val _to = edge.to
-
-    val x = 1
-
-    /*graph.addVertex(1, 2, 3, 4, 5, 6)
-
-    graph.addEdge(1, 2, 6.7)
-    graph.addEdge(1, 3, 5.2)
-    graph.addEdge(1, 4, 2.8)
-    graph.addEdge(1, 5, 5.6)
-    graph.addEdge(1, 6, 3.6)
-    graph.addEdge(2, 3, 5.7)
-    graph.addEdge(2, 4, 7.3)
-    graph.addEdge(2, 5, 5.1)
-    graph.addEdge(2, 6, 3.2)
-    graph.addEdge(3, 4, 3.4)
-    graph.addEdge(3, 5, 8.5)
-    graph.addEdge(3, 6, 4.0)
-    graph.addEdge(4, 5, 8.0)
-    graph.addEdge(4, 6, 4.4)
-    graph.addEdge(5, 6, 4.6)*/
-
-    // prim
-
-    ;
-
-
-
+    MSTKruskal(graph).mst()?.edges?.forEach {
+        println("Vertices: ${it.vertices}, Weight: ${it.weight}")
+    }
 }
