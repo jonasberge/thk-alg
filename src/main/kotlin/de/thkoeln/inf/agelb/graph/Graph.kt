@@ -19,7 +19,8 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
      * Represents an edge of a graph. An instance of this class always
      * belongs to the the graph it was created in throughout its life time.
      */
-    inner class Edge(var weight: Double = DEFAULT_WEIGHT): Comparable<Edge>
+    inner class Edge(from: Int, to: Int, weight: Double = DEFAULT_WEIGHT)
+        : Comparable<Edge>
     {
         val vertices : Pair<Int, Int>
             get() = volatile { edgeMapping[this]!! }
@@ -27,12 +28,32 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
         val from: Int get() = vertices.first
         val to: Int get() = vertices.second
 
+        private var _weight: Double = weight
+        var weight: Double
+            get() = _weight
+            set(value) {
+                _weight = value
+                mirroredEdge?.let { it._weight = value }
+            }
+
+        private var mirroredEdge: Edge? = null
+
         val isDirected: Boolean
-            get() {
+            get() = mirroredEdge == null
+            /* get() {
                 val u = volatile { vertexIndex(from)!! }
                 val v = volatile { vertexIndex(to)!! }
                 return connection[u][v] != connection[v][u]
-            }
+            } */
+
+        init { edgeMapping[this] = Pair(from, to) }
+
+        fun mirrored() = mirroredEdge ?: let {
+            val other = Edge(to, from, weight)
+            other.mirroredEdge = this
+            mirroredEdge = other
+            other
+        }
 
         /**
          * Should be used for the execution of code that might cause an
@@ -140,15 +161,8 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
         val u = assureVertex(from)
         val v = assureVertex(to)
 
-        if (connection[u][v] == null)
-            connection[u][v] = Edge()
-
-        val edge = connection[u][v]!!
-        edge.weight = weight
-
-        edgeMapping[edge] = Pair(from, to)
-
-        return edge
+        removeEdge(from, to)
+        return Edge(from, to, weight).also { connection[u][v] = it }
     }
 
     /**
@@ -170,6 +184,15 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
         val u = assureVertex(first)
         val v = assureVertex(second)
 
+        removeEdge(first, second)
+        removeEdge(second, first)
+
+        val edge = Edge(first, second, weight)
+        connection[u][v] = edge
+        connection[v][u] = edge.mirrored()
+        return edge
+
+        /*
         // Take one of the existing edges or make a new one.
         val edge = connection[u][v] ?: connection[v][u] ?: Edge()
         edge.weight = weight
@@ -183,6 +206,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
         connection[v][u] = edge
 
         return edge
+        */
     }
 
     /**
@@ -197,14 +221,29 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
      * @param from the id of the vertex the edge starts at.
      * @param to the id of the vertex the edge ends at.
      */
-    fun removeEdge(from: Int, to: Int) : Edge?
+    fun removeEdge(from: Int, to: Int)
     {
         if (!hasVertex(from) || !hasVertex(to))
-            return null
+            return
 
         val u = vertexIndex(from)!!
         val v = vertexIndex(to)!!
 
+        connection[u][v]?.let { edge ->
+            connection[v][u]?.takeIf {
+                // In case of an undirected edge,
+                // remove its mirrored counterpart as well.
+                !edge.isDirected
+            } ?.let { mirrored ->
+                edgeMapping.remove(mirrored)
+                connection[v][u] = null
+            }
+
+            edgeMapping.remove(edge)
+            connection[u][v] = null
+        }
+
+        /*
         val edge = connection[u][v]
         edgeMapping.remove(edge)
         connection[u][v] = null
@@ -217,19 +256,11 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
         }
 
         return edge
+        */
     }
 
-    /**
-     * Removes an edge of the graph.
-     * @param edge the edge to remove.
-     */
-    fun removeEdge(edge: Edge)
-    {
-        if (edge in edgeMapping) {
-            val pair = edgeMapping[edge]!!
-            removeEdge(pair.first, pair.second)
-        }
-    }
+    /** @see removeEdge */
+    fun removeEdge(edge: Edge) = removeEdge(edge.from, edge.to)
 
     /**
      * Returns the edge connecting two vertices.
