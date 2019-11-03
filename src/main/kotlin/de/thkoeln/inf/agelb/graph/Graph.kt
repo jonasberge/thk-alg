@@ -83,6 +83,10 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
     val edges : Set<Edge>
         get() = edgeMapping.keys
 
+    /** True if the graph contains no vertices. */
+    val isEmpty : Boolean
+        get() = vertexMapping.size == 0
+
     /**
      * Adds a vertex to the graph.
      * @param id the id of the vertex.
@@ -120,11 +124,11 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
     }
 
     /**
-     * Checks if the graph contains a vertex.
+     * Checks if the graph contains one or more vertices.
      * @param id the id of the vertex.
-     * @return true if the graph contains the vertex.
+     * @return true if the graph contains all vertices.
      */
-    fun hasVertex(id: Int) = id in vertexMapping
+    fun hasVertex(vararg id: Int) = !id.any { it !in vertexMapping }
 
     /**
      * Connects two vertices through a directed edge.
@@ -228,6 +232,49 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
     }
 
     /**
+     * Returns the edge connecting two vertices.
+     * @param from the id of the vertex the edge starts at.
+     * @param to the id of the vertex the edge ends at.
+     * @return the connecting edge or null.
+     */
+    fun getEdge(from: Int, to: Int)
+            = if (hasVertex(from, to)) getEdge_unsafe(from, to) else null
+
+    /** @see getEdge */
+    fun getEdge(between: Pair<Int, Int>)
+            = getEdge(between.first, between.second)
+
+    /**
+     * Returns the edge connecting two vertices.
+     * Assumes that both vertices exist.
+     * @param from the id of the vertex the edge starts at.
+     * @param to the id of the vertex the edge ends at.
+     * @return the connecting edge or null.
+     */
+    private fun getEdge_unsafe(from: Int, to: Int) : Edge?
+    {
+        val u = vertexIndex(from)!!
+        val v = vertexIndex(to)!!
+        return connection[u][v]
+    }
+
+    /**
+     * Checks if two vertices are adjacent i.e. connected with an edge.
+     * @param from the id of the vertex the edge starts at.
+     * @param to the id of the vertex the edge ends at.
+     * @return true if the vertices are adjacent.
+     */
+    fun isAdjacent(from: Int, to: Int) = getEdge(from, to) != null
+
+    /**
+     * Retrieves the edges leaving this vertex.
+     * @param vertex the id of the vertex.
+     * @return a set of edges.
+     */
+    fun edgesFrom(vertex: Int) = neighborsOf(vertex)
+        .mapNotNull { other -> getEdge_unsafe(vertex, other) }.toSet()
+
+    /**
      * Retrieves the vertices that are connected to this vertex through an edge.
      * @param vertex the id of the vertex.
      * @return a set of vertices (ids).
@@ -243,55 +290,12 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
             if (connection[index][k] != null)
                 result.add(other)
 
-        return result
+        return result.toSet()
     }
 
-    /**
-     * Retrieves the vertices that are connected to this vertex through an edge.
-     * @see neighborsOf
-     */
+    /** @see neighborsOf */
     fun neighboursOf(vertex: Int)
             = neighborsOf(vertex)
-
-    /**
-     * Retrieves the edges this vertex is connected to.
-     * @param vertex the id of the vertex.
-     * @return a set of edges.
-     */
-    fun edgesFrom(vertex: Int): Set<Edge> = neighborsOf(vertex).mapNotNull { other -> getEdge(vertex to other) }.toSet()
-
-    /**
-     * Returns the edge connecting two vertices.
-     * @param from the id of the vertex the edge starts at.
-     * @param to the id of the vertex the edge ends at.
-     * @return the connecting edge or null.
-     */
-    fun getEdge(from: Int, to: Int) : Edge?
-    {
-        if (!hasVertex(from) || !hasVertex(to))
-            return null
-
-        val u = vertexIndex(from)!!
-        val v = vertexIndex(to)!!
-
-        return connection[u][v]
-    }
-
-    /**
-     * Returns the edge between two vertices.
-     * @see getEdge
-     */
-    fun getEdge(between: Pair<Int, Int>)
-            = getEdge(between.first, between.second)
-
-    /**
-     * Checks if two vertices are adjacent i.e. connected with an edge.
-     * @param from the id of the vertex the edge starts at.
-     * @param to the id of the vertex the edge ends at.
-     * @return true if the vertices are adjacent.
-     */
-    fun isAdjacent(from: Int, to: Int) : Boolean
-            = getEdge(from, to) != null
 
     /**
      * Ensure that the graph can hold that many vertices.
