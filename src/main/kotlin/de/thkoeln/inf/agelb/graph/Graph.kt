@@ -50,68 +50,6 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
                 = f(edges.first).run { f(edges.second) }
     }
 
-    /*
-    /**
-     * Represents an edge of a graph. An instance of this class always
-     * belongs to the the graph it was created in throughout its life time.
-     */
-    inner class EdgeOld(from: Int, to: Int, weight: Double = DEFAULT_WEIGHT)
-        : Comparable<EdgeOld>
-    {
-        val vertices : Pair<Int, Int>
-            get() = volatile { edgeMapping[this]!! }
-
-        val from: Int get() = vertices.first
-        val to: Int get() = vertices.second
-
-        private var _weight: Double = weight
-        var weight: Double
-            get() = _weight
-            set(value) {
-                _weight = value
-                mirroredEdge?.let { it._weight = value }
-            }
-
-        private var mirroredEdge: EdgeOld? = null
-
-        val isDirected: Boolean
-            get() = mirroredEdge == null
-            /* get() {
-                val u = volatile { vertexIndex(from)!! }
-                val v = volatile { vertexIndex(to)!! }
-                return connection[u][v] != connection[v][u]
-            } */
-
-        init { edgeMapping[this] = Pair(from, to) }
-
-        fun mirrored() = mirroredEdge ?: let {
-            val other = EdgeOld(to, from, weight)
-            other.mirroredEdge = this
-            mirroredEdge = other
-            other
-        }
-
-        /**
-         * Should be used for the execution of code that might cause an
-         * exception after the current edge has been removed from the graph.
-         * @param f lambda containing the volatile code
-         */
-        private fun <T> volatile(f: () -> T) =
-            try { f() }
-            catch (e: Exception) {
-                throw InvalidEdgeException("The edge was removed from the graph")
-            }
-
-        /**
-         * Compares this weight with the specified edges weight for order.
-         * Returns zero if the value is equal to the specified other value, a negative number if it's less than other,
-         * or a positive number if it's greater than other.
-         * @param other another edge to compare with
-         */
-        override fun compareTo(other: EdgeOld): Int = weight.compareTo(other.weight)
-    }
-    */
-
     /**
      * The adjacency matrix, storing a "connection":
      * An instance of Edge meaning there is a connection, and
