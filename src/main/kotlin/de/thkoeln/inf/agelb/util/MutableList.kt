@@ -1,4 +1,4 @@
-package de.thkoeln.inf.agelb.graph
+package de.thkoeln.inf.agelb.util
 
 /** Removes the last n elements from the list. */
 fun <T> MutableList<T>.removeLast(n: Int)

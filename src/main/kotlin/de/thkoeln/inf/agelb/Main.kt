@@ -1,8 +1,9 @@
 package de.thkoeln.inf.agelb
 
-import de.thkoeln.inf.agelb.graph.Graph
-import de.thkoeln.inf.agelb.graph.mst.MSTKruskal
-import de.thkoeln.inf.agelb.graph.mst.MSTPrim
+import de.thkoeln.inf.agelb.adt.graph.Graph
+import de.thkoeln.inf.agelb.mst.KruskalStepwiseMST
+import de.thkoeln.inf.agelb.mst.PrimMST
+import de.thkoeln.inf.agelb.mst.PrimStepwiseMST
 
 fun main()
 {
@@ -27,13 +28,15 @@ fun main()
     graph.addUndirectedEdge(1, 6, 10.0)
     graph.addUndirectedEdge(1, 7, 13.0)
 
-    MSTKruskal(graph).mst()?.edges?.forEach {
-        println("Vertices: ${it.vertices}, Weight: ${it.weight}")
+    println("__Kruskal__")
+
+    KruskalStepwiseMST(graph).steps().forEach {
+        println(it)
     }
 
-    println("Prim")
+    println("\n__Prim__")
 
-    MSTPrim(graph).mst()?.edges?.forEach {
-        println("Vertices: ${it.vertices}, Weight: ${it.weight}")
+    PrimStepwiseMST(graph).steps().forEach {
+        println(it)
     }
 }

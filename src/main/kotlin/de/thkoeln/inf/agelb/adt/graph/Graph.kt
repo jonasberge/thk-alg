@@ -1,5 +1,6 @@
-package de.thkoeln.inf.agelb.graph
+package de.thkoeln.inf.agelb.adt.graph
 
+import de.thkoeln.inf.agelb.util.retainFirst
 import java.util.Stack
 
 private const val DEFAULT_WEIGHT = 0.0
@@ -22,6 +23,12 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
         val isDirected: Boolean
             get() = this is DirectedEdge
 
+        fun other(vertexId: Int): Int = when (vertexId) {
+            from -> to
+            to -> from
+            else -> throw IllegalArgumentException("Illegal Endpoint")
+        }
+
         /**
          * Compares this weight with the specified edges weight for order.
          * Returns zero if the value is equal to the specified other value, a negative number if it's less than other,
@@ -32,7 +39,8 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
     }
 
     class DirectedEdge(override val from: Int, override val to: Int,
-                       override var weight: Double = DEFAULT_WEIGHT)
+                       override var weight: Double = DEFAULT_WEIGHT
+    )
         : Edge()
 
     class UndirectedEdge(first: DirectedEdge, second: DirectedEdge)
@@ -160,7 +168,8 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
      * @param weight the weight of the edge.
      */
     fun addUndirectedEdge(first: Int, second: Int,
-                          weight: Double = DEFAULT_WEIGHT) : Edge
+                          weight: Double = DEFAULT_WEIGHT
+    ) : Edge
     {
         removeEdge(first, second)
         removeEdge(second, first)
@@ -253,7 +262,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
      * @param vertex the id of the vertex.
      * @return a set of edges.
      */
-    fun edgesFrom(vertex: Int) = neighborsOf(vertex)
+    fun adjacentEdges(vertex: Int) = neighborsOf(vertex)
         .mapNotNull { other -> getEdge_unsafe(vertex, other) }.toSet()
 
     /**
