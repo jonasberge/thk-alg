@@ -142,30 +142,29 @@ class PrimStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
                     )
                 }
             }
-
-            if(edges.size == verticesSize - 1) {
-                yield(
-                    Step(
-                        type = StepType.MST_COMPLETE,
-                        root = root,
-                        queue = priorityQueue.indices,
-                        visitedNodes = parent.keys.toSet(),
-                        edges = edges.toSet(),
-                        totalWeight = weight
-                    )
+        }
+        if(edges.size == verticesSize - 1) {
+            yield(
+                Step(
+                    type = StepType.MST_COMPLETE,
+                    root = root,
+                    queue = priorityQueue.indices,
+                    visitedNodes = parent.keys.toSet(),
+                    edges = edges.toSet(),
+                    totalWeight = weight
                 )
-            } else {
-                yield(
-                    Step(
-                        type = StepType.MST_INCOMPLETE,
-                        root = root,
-                        queue = priorityQueue.indices,
-                        visitedNodes = parent.keys.toSet(),
-                        edges = edges.toSet(),
-                        totalWeight = weight
-                    )
+            )
+        } else {
+            yield(
+                Step(
+                    type = StepType.MST_INCOMPLETE,
+                    root = root,
+                    queue = priorityQueue.indices,
+                    visitedNodes = parent.keys.toSet(),
+                    edges = edges.toSet(),
+                    totalWeight = weight
                 )
-            }
+            )
         }
     }
 

@@ -28,7 +28,6 @@ class PrimMST(private val sourceGraph: Graph): MST {
         parent[root] = root
 
         while (priorityQueue.isNotEmpty()) {
-            println(priorityQueue.indices)
             val node = priorityQueue.poll().first
             println("Next node: $node")
 
