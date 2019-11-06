@@ -1,14 +1,13 @@
 package de.thkoeln.inf.agelb.ui
 
-import de.thkoeln.inf.agelb.graph.Graph
+import de.thkoeln.inf.agelb.adt.graph.Graph
 import processing.core.PApplet
 import processing.core.PVector
 import kotlin.math.pow
 import controlP5.*
 import controlP5.Textfield
 import controlP5.ControlEvent
-import de.thkoeln.inf.agelb.graph.mst.MSTPrim
-import de.thkoeln.inf.agelb.graph.mst.MSTStrategy
+import de.thkoeln.inf.agelb.mst.*
 
 private fun distSq(x1: Float, y1: Float, x2: Float, y2: Float)
         = (x1 - x2).pow(2) + (y1 - y2).pow(2)
@@ -59,11 +58,10 @@ class GraphApplet(val config: Config) : PApplet()
         Button(cp5, "button-prim")
             .onClick {
                 println("clicked Prim")
-                solve(MSTPrim(graph))
             }
     }
 
-    fun solve(strategy: MSTStrategy)
+    fun solve(strategy: StepwiseMST)
     {
     }
 
@@ -96,8 +94,6 @@ class GraphApplet(val config: Config) : PApplet()
         noStroke()
         fill(config.node.paddingColor)
         nodeList.forEach { it.drawPadding(this) }
-
-        // cp5.draw() // Draw the text elements before the edges.
 
         edgeSet.forEach { edge ->
             val a = PVector(edge.first.x, edge.first.y)
@@ -149,8 +145,6 @@ class GraphApplet(val config: Config) : PApplet()
             stroke(0, 80f)
             line(node.x + direction.x, node.y + direction.y, mouseX.toFloat(), mouseY.toFloat())
         }
-
-        // primButton?.draw(this.graphics)
     }
 
     private var nodeIdCounter = 1
@@ -223,8 +217,8 @@ class GraphApplet(val config: Config) : PApplet()
                 .setSize(50, 20)
                 .setAutoClear(false)
                 .setCaptionLabel("")
-                .setColorBackground(color(255, 210))
-                .setColorForeground(color(255, 210))
+                .setColorBackground(color(255, 230))
+                .setColorForeground(color(255, 230))
                 .setColorValue(color(0))
                 .setColorActive(color(200))
                 .setColorCursor(color(0))
@@ -301,18 +295,17 @@ class GraphApplet(val config: Config) : PApplet()
         // Click on a spot where a node can be placed:
         // > single click: creates a node at that position.
 
-        if (primButton.isPressed == true)
+
+        // Do not pass click events through
+        // if another element is pressed.
+        if (primButton.isPressed)
             return
+        for (edge in edgeSet)
+            if (edge.textField.isMousePressed)
+                return
 
         val x = mouseX.toFloat()
         val y = mouseY.toFloat()
-
-        for (edge in edgeSet) {
-            if (edge.textField.isMousePressed) {
-                // edge.textField.isFocus = true
-                return
-            }
-        }
 
         val node = Node(x, y, config.node.radius, config.node.padding)
 
@@ -471,16 +464,11 @@ class GraphApplet(val config: Config) : PApplet()
         highlightedNode = nodeList.firstOrNull { it.contains(x, y) }
     }
 
-    fun scrollBy(dx: Int, dy: Int)
+    private fun scrollBy(dx: Int, dy: Int)
     {
         nodeList.forEach { node ->
             node.x += dx
             node.y += dy
         }
     }
-
-    fun boxContains(bx: Float, by: Float,
-                    width: Float, height: Float,
-                    mX: Float, mY: Float) : Boolean
-            = mX > bx && mX < bx + width && mY > by && mY < by + height
 }
