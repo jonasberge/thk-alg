@@ -1,11 +1,17 @@
 package de.thkoeln.inf.agelb.ui
 
+import de.thkoeln.inf.agelb.graph.Graph
 import processing.core.PApplet
 import processing.core.PVector
 import kotlin.math.pow
 import controlP5.*
 import controlP5.Textfield
 import controlP5.ControlEvent
+import de.thkoeln.inf.agelb.graph.mst.MSTPrim
+import de.thkoeln.inf.agelb.graph.mst.MSTStrategy
+
+private fun distSq(x1: Float, y1: Float, x2: Float, y2: Float)
+        = (x1 - x2).pow(2) + (y1 - y2).pow(2)
 
 class GraphApplet(val config: Config) : PApplet()
 {
@@ -15,7 +21,6 @@ class GraphApplet(val config: Config) : PApplet()
         val isResizable: Boolean,
         val backgroundColor: Int,
         val scrollDragTolerance: Float,
-        val scrollingMouseButton: Int,
         val node: Node
     ) {
         data class Node(
@@ -35,18 +40,129 @@ class GraphApplet(val config: Config) : PApplet()
         fun run(config: Config) = GraphApplet(config).runSketch()
     }
 
-    fun distSq(x1: Float, y1: Float, x2: Float, y2: Float)
-            = (x1 - x2).pow(2) + (y1 - y2).pow(2)
+    fun controlEvent(event: ControlEvent)
+    {
+        println(event.controller.name)
+
+        edgeMap[event.id]?.let { edge ->
+            edge.textField.isFocus = false
+            graph.getEdge(edge.first.id to edge.second.id)?.let { graphEdge ->
+                event.stringValue.runCatching { this.toDouble() }
+                    .onSuccess { graphEdge.weight = it }
+                    .onFailure { graphEdge.weight = 0.0 }
+                edge.textField.text = graphEdge.weight.toString()
+            }
+        }
+    }
+
+    private val primButton : Button by lazy {
+        Button(cp5, "button-prim")
+            .onClick {
+                println("clicked Prim")
+                solve(MSTPrim(graph))
+            }
+    }
+
+    fun solve(strategy: MSTStrategy)
+    {
+    }
+
+    override fun setup()
+    {
+        surface.setResizable(config.isResizable)
+        surface.setSize(config.width, config.height)
+
+        val topLeftX = displayWidth / 2 - config.width / 2
+        val topLeftY = displayHeight / 2 - config.height / 2
+        surface.setLocation(topLeftX, topLeftY)
+
+        previousWidth = width
+        previousHeight = height
+    }
+
+    override fun draw()
+    {
+        if (width != previousWidth || height != previousHeight) {
+            val dx = (width - previousWidth) / 2
+            val dy = (height - previousHeight) / 2
+            scrollBy(dx, dy)
+            previousWidth = width
+            previousHeight = height
+        }
+
+        clear()
+        background(config.backgroundColor)
+
+        noStroke()
+        fill(config.node.paddingColor)
+        nodeList.forEach { it.drawPadding(this) }
+
+        // cp5.draw() // Draw the text elements before the edges.
+
+        edgeSet.forEach { edge ->
+            val a = PVector(edge.first.x, edge.first.y)
+            val b = PVector(edge.second.x, edge.second.y)
+            val aToB = b.sub(a).setMag(edge.first.radius)
+
+            val x1 = edge.first.x + aToB.x
+            val y1 = edge.first.y + aToB.y
+            val x2 = edge.second.x - aToB.x
+            val y2 = edge.second.y - aToB.y
+
+            stroke(config.node.strokeColor)
+            line(x1, y1, x2, y2)
+
+            noStroke()
+            val textField = edge.textField
+            val tx = (edge.first.x + edge.second.x) / 2 - textField.width / 2
+            val ty = (edge.first.y + edge.second.y) / 2 - textField.height / 2
+            textField.setPosition(tx, ty)
+        }
+
+        strokeWeight(config.node.strokeWeight)
+
+        stroke(config.node.strokeColor)
+        fill(config.node.fillColor)
+        nodeList.forEach { it.draw(this) }
+
+        highlightedNode?.let {
+            stroke(config.node.strokeColor)
+            fill(config.node.highlightedFillColor)
+            it.draw(this)
+        }
+
+        selectedNode?.let {
+            stroke(config.node.strokeColor)
+            fill(config.node.selectedFillColor)
+            it.draw(this)
+        }
+
+        selectedNode?.let { node ->
+            val nodeVector = PVector(node.x, node.y)
+            val mouseVector = PVector(mouseX.toFloat(), mouseY.toFloat())
+            val direction = mouseVector.sub(nodeVector)
+            if (direction.mag() < node.radius)
+                return
+
+            direction.setMag(node.radius)
+
+            stroke(0, 80f)
+            line(node.x + direction.x, node.y + direction.y, mouseX.toFloat(), mouseY.toFloat())
+        }
+
+        // primButton?.draw(this.graphics)
+    }
+
+    private var nodeIdCounter = 1
 
     inner class Node(var x: Float, var y: Float,
-                     radius: Float = config.node.radius,
-                     padding: Float = config.node.padding)
+                     radius: Float, padding: Float)
     {
         var radius: Float = radius
-            set(value) { if (value > 0) field = value }
+            set(value) { field = abs(value) }
 
         var padding: Float = padding
-            set (value) { if (value > 0) field = value }
+            set (value) { field = abs(value) }
 
         val realPadding
             get() = this.padding + config.node.strokeWeight
@@ -54,15 +170,17 @@ class GraphApplet(val config: Config) : PApplet()
         val diameter: Float
             get() = radius * 2
 
-        fun draw()
+        val id: Int by lazy { nodeIdCounter++ }
+
+        fun draw(context: PApplet)
         {
-            ellipse(x, y, diameter, diameter)
+            context.ellipse(x, y, diameter, diameter)
         }
 
-        fun drawPadding()
+        fun drawPadding(context: PApplet)
         {
             val d = radius + padding
-            ellipse(x, y, d * 2, d * 2)
+            context.ellipse(x, y, d * 2, d * 2)
         }
 
         fun distanceTo(other: Node) = sqrt(squaredDistanceTo(other))
@@ -92,150 +210,55 @@ class GraphApplet(val config: Config) : PApplet()
                 = squaredDistanceTo(x, y) < radius.pow(2)
     }
 
-    // Implemented as data class so that its
-    // hash code solely depends on its properties.
-    data class Edge(val between: Pair<Node, Node>)
+    private var edgeIdCounter = 1
+
+    inner class Edge(val between: Pair<Node, Node>)
     {
         val first: Node get() = between.first
         val second: Node get() = between.second
 
-        fun opposite() = Edge(Pair(second, first))
+        val textField : Textfield by lazy {
+            val textField = Textfield(cp5, "textfield-${first.id}-${second.id}")
+                .setFont(createFont("Consolas", 14f))
+                .setSize(50, 20)
+                .setAutoClear(false)
+                .setCaptionLabel("")
+                .setColorBackground(color(255, 210))
+                .setColorForeground(color(255, 210))
+                .setColorValue(color(0))
+                .setColorActive(color(200))
+                .setColorCursor(color(0))
+                .setId(edgeIdCounter++)
+            textField
+        }
+
+        fun hasNode(node: Node) = first == node || second == node
+
+        override fun hashCode() = first.hashCode() + second.hashCode()
+        override fun equals(other: Any?) : Boolean
+        {
+            if (this === other) return true
+            if (other !is Edge) return false
+
+            if (first == other.first && second == other.second) return true
+            if (first == other.second && second == other.first) return true
+
+            return false
+        }
     }
 
+    private val graph = Graph()
+    private val nodeMap = mutableMapOf<Int, Node>()
     private val nodeList = mutableListOf<Node>()
     private val edgeSet = mutableSetOf<Edge>()
+    private val edgeMap = mutableMapOf<Int, Edge>()
 
-    fun controlEvent(event: ControlEvent)
-    {
-        println("controlEvent: accessing a string from controller '"
-            + event.name + "': " + event.stringValue )
-    }
-
-    override fun setup()
-    {
-        surface.setResizable(config.isResizable)
-        surface.setSize(config.width, config.height)
-
-        val topLeftX = displayWidth / 2 - config.width / 2
-        val topLeftY = displayHeight / 2 - config.height / 2
-        surface.setLocation(topLeftX, topLeftY)
-
-        previousWidth = width
-        previousHeight = height
-
-        textField = cp5.addTextfield("textValue")
-            .setPosition(20f, 170f)
-            .setFont(createFont("Consolas", 14f))
-            .setSize(50, 20)
-            .setAutoClear(false)
-            .setCaptionLabel("")
-            .setFocus(true)
-            .setColorBackground(color(255, 140))
-            .setColorForeground(color(255, 140))
-            .setColorValue(color(0))
-            .setColorActive(color(200))
-            .setColorCursor(color(0))
-
-        // cp5.isAutoDraw = false
-    }
-
-    override fun draw()
-    {
-        if (width != previousWidth || height != previousHeight) {
-            val dx = (width - previousWidth) / 2
-            val dy = (height - previousHeight) / 2
-            scrollBy(dx, dy)
-            previousWidth = width
-            previousHeight = height
-        }
-
-        clear()
-        background(config.backgroundColor)
-
-        noStroke()
-        fill(config.node.paddingColor)
-        nodeList.forEach { it.drawPadding() }
-
-        strokeWeight(config.node.strokeWeight)
-
-        stroke(config.node.strokeColor)
-        fill(config.node.fillColor)
-        nodeList.forEach { it.draw() }
-
-        highlightedNode?.let {
-            stroke(config.node.strokeColor)
-            fill(config.node.highlightedFillColor)
-            it.draw()
-        }
-
-        selectedNode?.let {
-            stroke(config.node.strokeColor)
-            fill(config.node.selectedFillColor)
-            it.draw()
-        }
-
-        // cp5.draw() // Draw the text elements before the edges.
-
-        // TODO: Move detection of highlighted edge to the mouseMove() listener.
-        var haveEdge = false
-
-        edgeSet.forEach { edge ->
-            val a = PVector(edge.first.x, edge.first.y)
-            val b = PVector(edge.second.x, edge.second.y)
-            val aToB = b.sub(a).setMag(edge.first.radius)
-
-            val x1 = edge.first.x + aToB.x
-            val y1 = edge.first.y + aToB.y
-            val x2 = edge.second.x - aToB.x
-            val y2 = edge.second.y - aToB.y
-
-            stroke(config.node.strokeColor)
-
-            if (!haveEdge && selectedNode == null && highlightedNode == null) {
-                val bx = min(x1, x2) - 10.0f
-                val by = min(y1, y2) - 10.0f
-                val dx = abs(x1 - x2) + 20.0f
-                val dy = abs(y1 - y2) + 20.0f
-                val insideBox = boxContains(bx, by, dx, dy, mouseX.toFloat(), mouseY.toFloat())
-                if (insideBox) {
-                    val dist = lineDistance(x1, y1, x2, y2, mouseX.toFloat(), mouseY.toFloat())
-                    if (dist < 10.0f) {
-                        haveEdge = true
-                        highlightedEdge = edge
-                        stroke(color(20, 120, 220))
-                    }
-                }
-            }
-
-            line(x1, y1, x2, y2)
-        }
-
-        if (!haveEdge)
-            highlightedEdge = null
-
-        selectedNode?.let { node ->
-            val nodeVector = PVector(node.x, node.y)
-            val mouseVector = PVector(mouseX.toFloat(), mouseY.toFloat())
-            val direction = mouseVector.sub(nodeVector)
-            if (direction.mag() < node.radius)
-                return
-
-            direction.setMag(node.radius)
-
-            stroke(0, 80f)
-            line(node.x + direction.x, node.y + direction.y, mouseX.toFloat(), mouseY.toFloat())
-        }
-    }
-
-    // TODO: For testing only.
     private val cp5: ControlP5 by lazy { ControlP5(this) }
-    private var textField: Textfield? = null
 
     private var createdNode: Node? = null
     private var clickedNode: Node? = null
     private var selectedNode: Node? = null
     private var highlightedNode: Node? = null
-    private var highlightedEdge: Edge? = null
 
     private var clickedX: Float = 0f
     private var clickedY: Float = 0f
@@ -250,13 +273,13 @@ class GraphApplet(val config: Config) : PApplet()
 
     override fun mousePressed()
     {
+        super.mousePressed()
+
         // TODO: holding SHIFT while connecting nodes should
         //  automatically select the node that was clicked on last.
 
         // TODO: while connecting nodes, left-clicking on an empty spot
         //  should not create a new node.
-
-        // TODO: right-clicking on a node should delete it.
 
         // TODO: right-clicking anywhere while connecting nodes should
         //  cancel the connection of nodes.
@@ -278,9 +301,20 @@ class GraphApplet(val config: Config) : PApplet()
         // Click on a spot where a node can be placed:
         // > single click: creates a node at that position.
 
+        if (primButton.isPressed == true)
+            return
+
         val x = mouseX.toFloat()
         val y = mouseY.toFloat()
-        val node = Node(x, y)
+
+        for (edge in edgeSet) {
+            if (edge.textField.isMousePressed) {
+                // edge.textField.isFocus = true
+                return
+            }
+        }
+
+        val node = Node(x, y, config.node.radius, config.node.padding)
 
         clickedX = x
         clickedY = y
@@ -303,9 +337,10 @@ class GraphApplet(val config: Config) : PApplet()
 
     override fun mouseDragged()
     {
+        super.mouseDragged()
+
         clickedNode?.also { node ->
-            // TODO: scrolling mouse button -> dragging mouse button
-            if (mouseButton != config.scrollingMouseButton)
+            if (mouseButton != LEFT)
                 return@also
 
             if (!isDragging) {
@@ -335,7 +370,7 @@ class GraphApplet(val config: Config) : PApplet()
                 }
             }
         } ?: run {
-            if (mouseButton != config.scrollingMouseButton)
+            if (mouseButton != LEFT)
                 return@run
 
             if (!isScrolling) {
@@ -358,25 +393,52 @@ class GraphApplet(val config: Config) : PApplet()
 
     override fun mouseReleased()
     {
+        super.mouseReleased()
+
         clickedNode?.takeIf {
             // We're not selecting a node if it was dragged around.
             // Also, only select nodes with the right mouse button.
-            !isDragging && mouseButton == LEFT
+            !isDragging
         } ?.let { clicked ->
+            if (mouseButton == RIGHT) {
+                // Remove all references to the node.
+                nodeList.remove(clicked)
+                if (highlightedNode == clicked) highlightedNode = null
+                if (selectedNode == clicked) selectedNode = null
+
+                graph.removeVertex(clicked.id)
+
+                // Remove all edges containing this node.
+                val iterator = edgeSet.iterator()
+                for (edge in iterator)
+                    if (edge.hasNode(clicked)) {
+                        edgeMap.remove(edge.textField.id)
+                        iterator.remove()
+                    }
+
+                return@let
+            }
+
             selectedNode?.takeIf {
                 // Only add an edge if the two nodes are different.
                 it != clicked
             } ?.also { selected ->
                 val edge = Edge(selected to clicked)
+                when (edge in edgeSet) {
+                    true -> {
+                        edgeSet.remove(edge)
+                        graph.removeEdge(edge.first.id to edge.second.id)
+                        edgeMap.remove(edge.textField.id)
+                    }
+                    false -> {
+                        edgeSet.add(edge)
+                        edge.textField.isFocus = true
+                        graph.addUndirectedEdge(edge.first.id, edge.second.id)
+                        edgeMap[edge.textField.id] = edge
+                    }
+                }
 
-                if (edge in edgeSet)
-                    edgeSet.remove(edge)
-                else if (edge.opposite() in edgeSet)
-                    edgeSet.remove(edge.opposite())
-                else
-                    edgeSet.add(edge)
-
-                selectedNode = null
+                selectedNode = null // Edge added, selection done.
             } ?: run {
                 // Either we selected a different node,
                 // or the node was deselected.
@@ -384,24 +446,12 @@ class GraphApplet(val config: Config) : PApplet()
             }
         }
 
-        highlightedEdge?.takeIf {
-            mouseButton == RIGHT
-        } ?.let { edge ->
-            println("edge right-clicked")
-
-            val font = createFont("arial", 20f)
-            cp5.addTextfield("input")
-                .setPosition(mouseX.toFloat(), mouseY.toFloat())
-                .setSize(200,40)
-                .setFont(font)
-                .setFocus(true)
-                .setColor(color(255,0,0))
-
-        }
-
         createdNode?.let {
             nodeList.add(it)
             highlightedNode = it
+
+            graph.addVertex(it.id)
+            nodeMap[it.id] = it
         }
         createdNode = null
         clickedNode = null
@@ -427,44 +477,6 @@ class GraphApplet(val config: Config) : PApplet()
             node.x += dx
             node.y += dy
         }
-    }
-
-    /* == Helpers == */
-    // TODO: Move somewhere else later.
-
-    // source: https://gist.github.com/lennerd/10259253
-    fun lineDistance(x1: Float, y1: Float,
-                     x2: Float, y2: Float,
-                     mX: Float, mY: Float) : Float
-    {
-        val lineStart = PVector(x1, y1)
-        val lineEnd = PVector(x2, y2)
-        val mouse = PVector(mX, mY)
-
-        val projection: PVector
-        val temp: PVector
-
-        temp = PVector.sub(lineEnd, lineStart)
-
-        val lineLength = temp.x * temp.x + temp.y * temp.y //lineStart.dist(lineEnd);
-
-        if (lineLength == 0f) {
-            return mouse.dist(lineStart)
-        }
-
-        val t = PVector.dot(PVector.sub(mouse, lineStart), temp) / lineLength
-
-        if (t < 0f) {
-            return mouse.dist(lineStart)
-        }
-
-        if (t > lineLength) {
-            return mouse.dist(lineEnd)
-        }
-
-        projection = PVector.add(lineStart, PVector.mult(temp, t))
-
-        return mouse.dist(projection)
     }
 
     fun boxContains(bx: Float, by: Float,

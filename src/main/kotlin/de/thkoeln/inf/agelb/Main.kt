@@ -1,7 +1,5 @@
 package de.thkoeln.inf.agelb
 
-import de.thkoeln.inf.agelb.graph.Graph
-import de.thkoeln.inf.agelb.graph.mst.MSTPrim
 import de.thkoeln.inf.agelb.ui.GraphApplet
 import processing.core.PApplet
 import processing.core.PConstants
@@ -17,7 +15,6 @@ fun main()
             isResizable = true,
             backgroundColor = pa.color(240),
             scrollDragTolerance = 8f,
-            scrollingMouseButton = PConstants.LEFT,
             node = GraphApplet.Config.Node(
                 radius = 25.0f,
                 padding = 35.0f,
@@ -30,6 +27,7 @@ fun main()
             )
         )
     )
+
 
     /*
     val graph = Graph()
@@ -85,14 +83,16 @@ fun main()
     graph.addUndirectedEdge(1, 6, 10.0)
     graph.addUndirectedEdge(1, 7, 13.0)
 
-    MSTKruskal(graph).mst()?.edges?.forEach {
-        println("Vertices: ${it.vertices}, Weight: ${it.weight}")
+    println("__Kruskal__")
+
+    KruskalStepwiseMST(graph).steps().forEach {
+        println(it)
     }
 
-    println("Prim")
+    println("\n__Prim__")
 
-    MSTPrim(graph).mst()?.edges?.forEach {
-        println("Vertices: ${it.vertices}, Weight: ${it.weight}")
+    PrimStepwiseMST(graph).steps().forEach {
+        println(it)
     }
     */
 }
