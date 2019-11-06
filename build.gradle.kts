@@ -13,6 +13,8 @@ repositories {
 
 dependencies {
     implementation(kotlin("stdlib-jdk8"))
+    implementation("org.processing", "core", "3.3.7")
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("*.jar"))))
     testCompile("junit", "junit", "4.12")
 }
 
