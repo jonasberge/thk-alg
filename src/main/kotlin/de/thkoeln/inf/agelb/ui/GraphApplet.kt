@@ -296,13 +296,19 @@ class GraphApplet(val config: Config) : PApplet()
         // > single click: creates a node at that position.
 
 
-        // Do not pass click events through
-        // if another element is pressed.
-        if (primButton.isPressed)
-            return
-        for (edge in edgeSet)
+        // Do not pass click events through if a text field is pressed.
+        for (edge in edgeSet) {
             if (edge.textField.isMousePressed)
                 return
+            if (edge.textField.isFocus)
+                // Submit the text field when the user clicks outside
+                // of it and doesn't press enter like it's expected.
+                edge.textField.submit()
+        }
+
+        // Same goes with any button.
+        if (primButton.isPressed)
+            return
 
         val x = mouseX.toFloat()
         val y = mouseY.toFloat()
