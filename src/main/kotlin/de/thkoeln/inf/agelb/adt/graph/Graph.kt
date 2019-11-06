@@ -29,6 +29,8 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
             else -> throw IllegalArgumentException("Illegal Endpoint")
         }
 
+
+
         /**
          * Compares this weight with the specified edges weight for order.
          * Returns zero if the value is equal to the specified other value, a negative number if it's less than other,
@@ -36,6 +38,8 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
          * @param other another edge to compare with
          */
         override fun compareTo(other: Edge) = weight.compareTo(other.weight)
+
+        override fun toString() = "Edge(from=$from, to=$to, weight=$weight)"
     }
 
     class DirectedEdge(override val from: Int, override val to: Int,
