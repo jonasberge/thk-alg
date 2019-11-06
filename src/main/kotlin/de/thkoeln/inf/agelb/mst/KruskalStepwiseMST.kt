@@ -18,11 +18,27 @@ class KruskalStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
     override fun steps() = sequence<MSTStep> {
         yield(Step(StepType.INIT))
         for (edge in sortedEdges) {
-            yield(Step(StepType.NEXT_EDGE, edge, weight, edges(), unionFind.sets))
+            yield(
+                Step(
+                    type = StepType.NEXT_EDGE,
+                    edge = edge,
+                    totalWeight = weight,
+                    edges = edges(),
+                    unionSets = unionFind.sets
+                )
+            )
 
             // skip edges that would create a cycle
             if(unionFind.connected(edge.from, edge.to)) {
-                yield(Step(StepType.SKIP_EDGE, edge, weight, edges(), unionFind.sets))
+                yield(
+                    Step(
+                        type = StepType.SKIP_EDGE,
+                        edge = edge,
+                        totalWeight = weight,
+                        edges = edges(),
+                        unionSets = unionFind.sets
+                    )
+                )
                 continue
             }
 
@@ -34,7 +50,15 @@ class KruskalStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
             // add edge to new graph
             edges.add(edge)
 
-            yield(Step(StepType.UNION_MERGE, edge, weight, edges(), unionFind.sets))
+            yield(
+                Step(
+                    type = StepType.UNION_MERGE,
+                    edge = edge,
+                    totalWeight = weight,
+                    edges = edges(),
+                    unionSets = unionFind.sets
+                )
+            )
 
             // stop early if mst is already done
             if(unionFind.biggestSetSize == unionFind.size) break
@@ -42,9 +66,23 @@ class KruskalStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
 
         // check if mst includes all nodes
         if(unionFind.biggestSetSize != unionFind.size) {
-            yield(Step(StepType.MST_INCOMPLETE, null, weight, edges(), unionFind.sets))
+            yield(
+                Step(
+                    type = StepType.MST_INCOMPLETE,
+                    totalWeight = weight,
+                    edges = edges(),
+                    unionSets = unionFind.sets
+                )
+            )
         } else {
-            yield(Step(StepType.MST_COMPLETE, null, weight, edges(), unionFind.sets))
+            yield(
+                Step(
+                    type = StepType.MST_COMPLETE,
+                    totalWeight = weight,
+                    edges = edges(),
+                    unionSets = unionFind.sets
+                )
+            )
         }
     }
 
@@ -53,7 +91,7 @@ class KruskalStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
     data class Step(
         val type: StepType,
         val edge: Graph.Edge? = null,
-        val weight: Double = 0.0,
+        val totalWeight: Double = 0.0,
         val edges: Set<Graph.Edge> = setOf(),
         val unionSets: Map<Int, Set<Int>> = mapOf()
     ): MSTStep

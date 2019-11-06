@@ -25,12 +25,33 @@ class PrimStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
 
         priorityQueue.insert(root, 0.0)
         distTo[root] = 0.0
-        yield(Step(StepType.INIT, root, null, null, null, priorityQueue.indices, parent.keys.toSet(), edges.toSet()))
+
+        yield(
+            Step(
+                type = StepType.INIT,
+                root = root,
+                queue = priorityQueue.indices,
+                visitedNodes = parent.keys.toSet(),
+                edges = edges.toSet(),
+                totalWeight = weight
+            )
+        )
+
         parent[root] = root
 
         while (priorityQueue.isNotEmpty()) {
             val node = priorityQueue.poll().first
-            yield(Step(StepType.NEXT_NODE, root, node, null, null, priorityQueue.indices, parent.keys.toSet(), edges.toSet()))
+            yield(
+                Step(
+                    type = StepType.NEXT_NODE,
+                    root = root,
+                    primaryNode = node,
+                    queue = priorityQueue.indices,
+                    visitedNodes = parent.keys.toSet(),
+                    edges = edges.toSet(),
+                    totalWeight = weight
+                )
+            )
 
             val parentNode = parent[node]!!
             if(parentNode != node) {
@@ -38,34 +59,112 @@ class PrimStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
                 edges.add(edge)
                 weight += edge.weight
 
-                yield(Step(StepType.ADD_EDGE, root, parentNode, node, edge.weight, priorityQueue.indices, parent.keys.toSet(), edges.toSet()))
+                yield(
+                    Step(
+                        type = StepType.ADD_EDGE,
+                        root = root,
+                        primaryNode = parentNode,
+                        secondaryNode = node,
+                        distance = edge.weight,
+                        queue = priorityQueue.indices,
+                        visitedNodes = parent.keys.toSet(),
+                        edges = edges.toSet(),
+                        totalWeight = weight
+                    )
+                )
             }
 
-            yield(Step(StepType.SCAN_NEIGHBORS, root, node, null, null, priorityQueue.indices, parent.keys.toSet(), edges.toSet()))
+            yield(
+                Step(
+                    type = StepType.SCAN_NEIGHBORS,
+                    root = root,
+                    primaryNode = node,
+                    queue = priorityQueue.indices,
+                    visitedNodes = parent.keys.toSet(),
+                    edges = edges.toSet(),
+                    totalWeight = weight
+                )
+            )
 
             for (edge in sourceGraph.adjacentEdges(node)) {
                 val neighbor = edge.other(node)
                 val distance = distTo[neighbor] ?: Double.POSITIVE_INFINITY
 
-                yield(Step(StepType.NEXT_NEIGHBOR, root, node, neighbor, distance, priorityQueue.indices, parent.keys.toSet(), edges.toSet()))
+                yield(
+                    Step(
+                        type = StepType.NEXT_NEIGHBOR,
+                        root = root,
+                        primaryNode = node,
+                        secondaryNode = neighbor,
+                        distance = distance,
+                        queue = priorityQueue.indices,
+                        visitedNodes = parent.keys.toSet(),
+                        edges = edges.toSet(),
+                        totalWeight = weight
+                    )
+                )
 
                 if(priorityQueue.contains(neighbor) && edge.weight < distance) {
                     distTo[neighbor] = edge.weight
                     parent[neighbor] = node
                     priorityQueue.decreaseKey(neighbor, edge.weight)
-                    yield(Step(StepType.QUEUE_UPDATE, root, node, neighbor, distance, priorityQueue.indices, parent.keys.toSet(), edges.toSet()))
+
+                    yield(
+                        Step(
+                            type = StepType.QUEUE_UPDATE,
+                            root = root,
+                            primaryNode = node,
+                            secondaryNode = neighbor,
+                            distance = distance,
+                            queue = priorityQueue.indices,
+                            visitedNodes = parent.keys.toSet(),
+                            edges = edges.toSet(),
+                            totalWeight = weight
+                        )
+                    )
                 } else if(parent[neighbor] == null) {
                     distTo[neighbor] = edge.weight
                     parent[neighbor] = node
                     priorityQueue.insert(neighbor, edge.weight)
-                    yield(Step(StepType.QUEUE_INSERT, root, node, neighbor, distance, priorityQueue.indices, parent.keys.toSet(), edges.toSet()))
+
+                    yield(
+                        Step(
+                            type = StepType.QUEUE_INSERT,
+                            root = root,
+                            primaryNode = node,
+                            secondaryNode = neighbor,
+                            distance = distance,
+                            queue = priorityQueue.indices,
+                            visitedNodes = parent.keys.toSet(),
+                            edges = edges.toSet(),
+                            totalWeight = weight
+                        )
+                    )
                 }
             }
 
             if(edges.size == verticesSize - 1) {
-                yield(Step(StepType.MST_COMPLETE, root, null, null, null, priorityQueue.indices, parent.keys.toSet(), edges.toSet()))
+                yield(
+                    Step(
+                        type = StepType.MST_COMPLETE,
+                        root = root,
+                        queue = priorityQueue.indices,
+                        visitedNodes = parent.keys.toSet(),
+                        edges = edges.toSet(),
+                        totalWeight = weight
+                    )
+                )
             } else {
-                yield(Step(StepType.MST_INCOMPLETE, root, null, null, null, priorityQueue.indices, parent.keys.toSet(), edges.toSet()))
+                yield(
+                    Step(
+                        type = StepType.MST_INCOMPLETE,
+                        root = root,
+                        queue = priorityQueue.indices,
+                        visitedNodes = parent.keys.toSet(),
+                        edges = edges.toSet(),
+                        totalWeight = weight
+                    )
+                )
             }
         }
     }
@@ -80,7 +179,8 @@ class PrimStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
         val distance: Double? = null,
         val queue: Set<Int> = setOf(),
         val visitedNodes: Set<Int> = setOf(),
-        val edges: Set<Graph.Edge> = setOf()
+        val edges: Set<Graph.Edge> = setOf(),
+        val totalWeight: Double = 0.0
     ): MSTStep
 
 }
