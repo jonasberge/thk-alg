@@ -1,5 +1,8 @@
 package de.thkoeln.inf.agelb
 
+import de.thkoeln.inf.agelb.adt.graph.Graph
+import de.thkoeln.inf.agelb.mst.KruskalStepwiseMST
+import de.thkoeln.inf.agelb.mst.PrimStepwiseMST
 import de.thkoeln.inf.agelb.ui.GraphApplet
 import processing.core.PApplet
 import processing.core.PConstants
@@ -27,7 +30,6 @@ fun main()
             )
         )
     )
-
 
     /*
     val graph = Graph()
@@ -61,7 +63,7 @@ fun main()
     val x = 1
     */
 
-    /*
+
     val graph = Graph(2, 2)
 
     graph.addUndirectedEdge(0, 4, 15.0)
@@ -91,8 +93,11 @@ fun main()
 
     println("\n__Prim__")
 
-    PrimStepwiseMST(graph).steps().forEach {
+    val primBySteps = PrimStepwiseMST(graph)
+
+    primBySteps.steps().forEach {
         println(it)
+        println(primBySteps.queue)
     }
-    */
+
 }

@@ -13,86 +13,43 @@ class KruskalStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
     private val unionFind = UnionFind(vertices)
     private val edges = hashSetOf<Graph.Edge>()
 
+    override var complete: Boolean = false
+        private set
+
     override fun edges() = edges.toSet()
 
     override fun steps() = sequence<MSTStep> {
-        yield(Step(StepType.INIT))
+        // go through all edges sorted by minimum weight
         for (edge in sortedEdges) {
-            yield(
-                Step(
-                    type = StepType.NEXT_EDGE,
-                    edge = edge,
-                    totalWeight = weight,
-                    edges = edges(),
-                    unionSets = unionFind.sets
-                )
-            )
+            yield(Step(StepType.EDGE_INSPECT, edge))
 
             // skip edges that would create a cycle
-            if(unionFind.connected(edge.from, edge.to)) {
-                yield(
-                    Step(
-                        type = StepType.SKIP_EDGE,
-                        edge = edge,
-                        totalWeight = weight,
-                        edges = edges(),
-                        unionSets = unionFind.sets
-                    )
-                )
-                continue
-            }
+            if(unionFind.connected(edge.from, edge.to)) continue
 
             // unite vertices in unionFind
             unionFind.union(edge.from, edge.to)
 
+            // add edges weight to MST total weight
             weight += edge.weight
 
             // add edge to new graph
             edges.add(edge)
 
-            yield(
-                Step(
-                    type = StepType.UNION_MERGE,
-                    edge = edge,
-                    totalWeight = weight,
-                    edges = edges(),
-                    unionSets = unionFind.sets
-                )
-            )
+            yield(Step(StepType.EDGE_SELECT, edge))
 
-            // stop early if mst is already done
+            // stop early if MST is already done
             if(unionFind.biggestSetSize == unionFind.size) break
         }
 
-        // check if mst includes all nodes
-        if(unionFind.biggestSetSize != unionFind.size) {
-            yield(
-                Step(
-                    type = StepType.MST_INCOMPLETE,
-                    totalWeight = weight,
-                    edges = edges(),
-                    unionSets = unionFind.sets
-                )
-            )
-        } else {
-            yield(
-                Step(
-                    type = StepType.MST_COMPLETE,
-                    totalWeight = weight,
-                    edges = edges(),
-                    unionSets = unionFind.sets
-                )
-            )
-        }
+        // check if MST actually includes all nodes
+        if(unionFind.biggestSetSize == unionFind.size)
+            complete = true
     }
 
-    enum class StepType { INIT, NEXT_EDGE, SKIP_EDGE, UNION_MERGE, MST_COMPLETE, MST_INCOMPLETE }
+    enum class StepType { EDGE_INSPECT, EDGE_SELECT }
 
     data class Step(
         val type: StepType,
-        val edge: Graph.Edge? = null,
-        val totalWeight: Double = 0.0,
-        val edges: Set<Graph.Edge> = setOf(),
-        val unionSets: Map<Int, Set<Int>> = mapOf()
+        val edge: Graph.Edge
     ): MSTStep
 }

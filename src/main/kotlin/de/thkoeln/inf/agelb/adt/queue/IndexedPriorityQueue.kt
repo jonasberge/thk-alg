@@ -1,6 +1,6 @@
 package de.thkoeln.inf.agelb.adt.queue
 
-class IndexedPriorityQueue<T>(size: Int, val comparator: Comparator<T>? = null) : Collection<T> {
+class IndexedPriorityQueue<T>(size: Int) : Collection<T> {
     /**
      * Maximum number of elements in the heap
      */
@@ -109,27 +109,13 @@ class IndexedPriorityQueue<T>(size: Int, val comparator: Comparator<T>? = null) 
         return Pair(min, element!!)
     }
 
-    private fun less(x: T, y: T): Boolean {
-        return if (comparator != null) {
-            comparator.compare(x, y) < 0
-        } else {
-            val left = x as Comparable<T>
-            left < y
-        }
-    }
+    /* Helper functions */
 
-    private fun greater(x: T, y: T): Boolean {
-        return if (comparator != null) {
-            comparator.compare(x, y) > 0
-        } else {
-            val left = x as Comparable<T>
-            left > y
-        }
-    }
+    private fun less(x: T, y: T) = x as Comparable<T> < y
 
-    private fun greater(i: Int, j: Int): Boolean {
-        return greater(keys[pq[i]]!!, keys[pq[j]]!!)
-    }
+    private fun greater(x: T, y: T) = x as Comparable<T> > y
+
+    private fun greater(i: Int, j: Int) = greater(keys[pq[i]]!!, keys[pq[j]]!!)
 
     private fun exch(i: Int, j: Int) {
         val swap = pq[i]

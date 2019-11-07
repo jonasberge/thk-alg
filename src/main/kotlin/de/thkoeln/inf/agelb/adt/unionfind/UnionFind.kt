@@ -5,7 +5,15 @@ class UnionFind(elements: Set<Int>) {
     private val sizeMap = hashMapOf<Int, Int>()
     private var count = 0
 
+
+    /*
+     * Number of elements in this union find
+     */
     val size get() = parentMap.size
+
+    /*
+     * Number of elements in the biggest set (used to check
+     */
     val biggestSetSize get() = sizeMap.maxBy { it.value }?.key?.let { size(it) }
 
     init {
