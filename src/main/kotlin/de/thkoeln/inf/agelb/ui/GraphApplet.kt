@@ -8,6 +8,7 @@ import controlP5.*
 import controlP5.Textfield
 import controlP5.ControlEvent
 import de.thkoeln.inf.agelb.mst.*
+import processing.core.PFont
 
 private fun distSq(x1: Float, y1: Float, x2: Float, y2: Float)
         = (x1 - x2).pow(2) + (y1 - y2).pow(2)
@@ -55,14 +56,41 @@ class GraphApplet(val config: Config) : PApplet()
     }
 
     private val primButton : Button by lazy {
-        Button(cp5, "button-prim")
-            .onClick {
-                println("clicked Prim")
-            }
+        Button(cp5, "prim-button")
+            .setCaptionLabel("Prim's Algorithmus")
+            .setFont(createFont("Consolas", 12f))
+            .setPosition(0f, 0f)
+            .setWidth(150)
+            .setHeight(20)
+            .onClick { println("clicked Prim") }
+    }
+
+    private val kruskalButton : Button by lazy {
+        Button(cp5, "kruskal-button")
+            .setCaptionLabel("Kruskal's Algorithmus")
+            .setFont(createFont("Consolas", 12f))
+            .setPosition(155f, 0f)
+            .setWidth(150)
+            .setHeight(20)
+            .onClick { println("clicked Kruskal") }
+    }
+
+    private val dropDownList : DropdownList by lazy {
+        DropdownList(cp5, "saved-graphs")
+            .setPosition(310f, 0f)
+            .setWidth(150)
+            .setHeight(20)
+            .setBarHeight(20)
+            .setItemHeight(20)
     }
 
     fun solve(strategy: StepwiseMST)
     {
+    }
+
+    private fun loadSavedGraphs()
+    {
+
     }
 
     override fun setup()
@@ -76,6 +104,12 @@ class GraphApplet(val config: Config) : PApplet()
 
         previousWidth = width
         previousHeight = height
+
+        primButton
+        kruskalButton
+        dropDownList
+
+        loadSavedGraphs()
     }
 
     override fun draw()
@@ -110,8 +144,14 @@ class GraphApplet(val config: Config) : PApplet()
 
             noStroke()
             val textField = edge.textField
-            val tx = (edge.first.x + edge.second.x) / 2 - textField.width / 2
-            val ty = (edge.first.y + edge.second.y) / 2 - textField.height / 2
+            val firstVector = PVector(x1, y1)
+            val secondVector = PVector(x2, y2)
+            val firstToSecond = secondVector.sub(firstVector)
+            firstToSecond.setMag(firstToSecond.mag() * edge.textFieldOffsetRatio)
+
+            val tx = x1 + firstToSecond.x - textField.width / 2
+            val ty = y1 + firstToSecond.y - textField.height / 2
+
             textField.setPosition(tx, ty)
         }
 
@@ -226,6 +266,8 @@ class GraphApplet(val config: Config) : PApplet()
             textField
         }
 
+        var textFieldOffsetRatio : Float = 0.5f
+
         fun hasNode(node: Node) = first == node || second == node
 
         override fun hashCode() = first.hashCode() + second.hashCode()
@@ -253,6 +295,7 @@ class GraphApplet(val config: Config) : PApplet()
     private var clickedNode: Node? = null
     private var selectedNode: Node? = null
     private var highlightedNode: Node? = null
+    private var clickedTextfieldEdge: Edge? = null
 
     private var clickedX: Float = 0f
     private var clickedY: Float = 0f
@@ -261,6 +304,7 @@ class GraphApplet(val config: Config) : PApplet()
 
     private var isScrolling: Boolean = false
     private var isDragging: Boolean = false
+    private var isDraggingTextfield: Boolean = false
 
     private var previousWidth: Int = 0
     private var previousHeight: Int = 0
@@ -298,17 +342,23 @@ class GraphApplet(val config: Config) : PApplet()
 
         // Do not pass click events through if a text field is pressed.
         for (edge in edgeSet) {
-            if (edge.textField.isMousePressed)
-                return
-            if (edge.textField.isFocus)
+            if (edge.textField.isMousePressed) {
+                println("clicked an edge..")
+                clickedTextfieldEdge = edge
+            }
+            else if (edge.textField.isFocus)
                 // Submit the text field when the user clicks outside
                 // of it and doesn't press enter like it's expected.
                 edge.textField.submit()
         }
 
-        // Same goes with any button.
-        if (primButton.isPressed)
+        if (clickedTextfieldEdge != null)
             return
+
+        // Same goes with any button.
+        if (primButton.isPressed) return
+        if (kruskalButton.isPressed) return
+        if (dropDownList.isMousePressed) return
 
         val x = mouseX.toFloat()
         val y = mouseY.toFloat()
@@ -334,11 +384,43 @@ class GraphApplet(val config: Config) : PApplet()
             createdNode = node
     }
 
+    private fun edgeLineBetween(node1: Node, node2: Node)
+        : Pair<PVector, PVector>
+    {
+        val a = PVector(node1.x, node1.y)
+        val b = PVector(node2.x, node2.y)
+        val aToB = PVector.sub(b, a)
+
+        aToB.setMag(node1.radius)
+        val start = PVector(node1.x + aToB.x, node1.y + aToB.y)
+
+        aToB.setMag(node2.radius)
+        val end = PVector(node2.x - aToB.x, node2.y - aToB.y)
+
+        return start to end
+    }
+
     override fun mouseDragged()
     {
         super.mouseDragged()
 
-        clickedNode?.also { node ->
+        clickedTextfieldEdge?.let { edge ->
+            if (!isDraggingTextfield) {
+                isDraggingTextfield = true
+                edge.textField.submit()
+            }
+
+            val (lineStart, lineEnd) = edgeLineBetween(edge.first, edge.second)
+            val projectedPoint = project(
+                PVector(mouseX.toFloat(), mouseY.toFloat()),
+                lineStart, lineEnd,
+                true
+            )
+
+            val distance = PVector.sub(projectedPoint, lineStart)
+            val fullDistance = PVector.sub(lineEnd, lineStart)
+            edge.textFieldOffsetRatio = distance.mag() / fullDistance.mag()
+        } ?: clickedNode?.also { node ->
             if (mouseButton != LEFT)
                 return@also
 
@@ -413,6 +495,7 @@ class GraphApplet(val config: Config) : PApplet()
                     if (edge.hasNode(clicked)) {
                         edgeMap.remove(edge.textField.id)
                         iterator.remove()
+                        cp5.remove(edge.textField.name)
                     }
 
                 return@let
@@ -425,9 +508,12 @@ class GraphApplet(val config: Config) : PApplet()
                 val edge = Edge(selected to clicked)
                 when (edge in edgeSet) {
                     true -> {
-                        edgeSet.remove(edge)
-                        graph.removeEdge(edge.first.id to edge.second.id)
-                        edgeMap.remove(edge.textField.id)
+                        // TODO: Improve this.
+                        val actualEdge = edgeSet.find { it == edge } !!
+
+                        cp5.remove(actualEdge.textField.name)
+                        edgeSet.remove(actualEdge)
+                        graph.removeEdge(actualEdge.first.id to actualEdge.second.id)
                     }
                     false -> {
                         edgeSet.add(edge)
@@ -454,9 +540,11 @@ class GraphApplet(val config: Config) : PApplet()
         }
         createdNode = null
         clickedNode = null
+        clickedTextfieldEdge = null
 
         isDragging = false
         isScrolling = false
+        isDraggingTextfield = false
 
         clickedOffsetX = 0f
         clickedOffsetY = 0f
@@ -476,5 +564,28 @@ class GraphApplet(val config: Config) : PApplet()
             node.x += dx
             node.y += dy
         }
+    }
+
+    /* === external stuff === */
+
+    // https://www.openprocessing.org/sketch/107041/
+    fun project(p: PVector, a: PVector, b: PVector, asSegment: Boolean)
+            : PVector
+    {
+        val A = p.x - a.x
+        val B = p.y - a.y
+        val C = b.x - a.x
+        val D = b.y - a.y
+
+        val dot = A * C + B * D
+        val len = C * C + D * D
+        val t = dot / len
+
+        if (asSegment) {
+            if (t < 0) return a
+            if (t > 1) return b
+        }
+        return PVector(a.x + t * C, a.y + t * D)
+
     }
 }
