@@ -7,8 +7,10 @@ import kotlin.math.pow
 import controlP5.*
 import controlP5.Textfield
 import controlP5.ControlEvent
+import de.thkoeln.inf.agelb.SerializeWrapper
 import de.thkoeln.inf.agelb.mst.*
 import processing.core.PFont
+import java.io.*
 
 private fun distSq(x1: Float, y1: Float, x2: Float, y2: Float)
         = (x1 - x2).pow(2) + (y1 - y2).pow(2)
@@ -75,6 +77,19 @@ class GraphApplet(val config: Config) : PApplet()
             .onClick { println("clicked Kruskal") }
     }
 
+    private val saveStateButton : Button by lazy {
+        Button(cp5, "save-state-button")
+            .setCaptionLabel("Graph abspeichern")
+            .setFont(createFont("Consolas", 12f))
+            .setPosition(0f, 25f)
+            .setWidth(150)
+            .setHeight(20)
+            .onClick {
+                val state = createGraphState()
+                saveGraphState("graphs/default.ser", state)
+            }
+    }
+
     private val dropDownList : DropdownList by lazy {
         DropdownList(cp5, "saved-graphs")
             .setPosition(310f, 0f)
@@ -88,13 +103,10 @@ class GraphApplet(val config: Config) : PApplet()
     {
     }
 
-    private fun loadSavedGraphs()
-    {
-
-    }
-
     override fun setup()
     {
+        cp5 = ControlP5(this)
+
         surface.setResizable(config.isResizable)
         surface.setSize(config.width, config.height)
 
@@ -107,9 +119,10 @@ class GraphApplet(val config: Config) : PApplet()
 
         primButton
         kruskalButton
+        saveStateButton
         dropDownList
 
-        loadSavedGraphs()
+        // loadSavedGraphs()
     }
 
     override fun draw()
@@ -191,6 +204,7 @@ class GraphApplet(val config: Config) : PApplet()
 
     inner class Node(var x: Float, var y: Float,
                      radius: Float, padding: Float)
+        : Serializable
     {
         var radius: Float = radius
             set(value) { field = abs(value) }
@@ -204,7 +218,7 @@ class GraphApplet(val config: Config) : PApplet()
         val diameter: Float
             get() = radius * 2
 
-        val id: Int by lazy { nodeIdCounter++ }
+        val id: Int = nodeIdCounter++ // by lazy { nodeIdCounter++ }
 
         fun draw(context: PApplet)
         {
@@ -246,25 +260,29 @@ class GraphApplet(val config: Config) : PApplet()
 
     private var edgeIdCounter = 1
 
+    private fun createTextField(edge: Edge) : Textfield
+    {
+        return Textfield(cp5, "textfield-${edge.first.id}-${edge.second.id}")
+            .setFont(createFont("Consolas", 14f))
+            .setSize(50, 20)
+            .setAutoClear(false)
+            .setCaptionLabel("")
+            .setColorBackground(color(255, 230))
+            .setColorForeground(color(255, 230))
+            .setColorValue(color(0))
+            .setColorActive(color(200))
+            .setColorCursor(color(0))
+            .setId(edgeIdCounter++)
+    }
+
     inner class Edge(val between: Pair<Node, Node>)
+        : Serializable
     {
         val first: Node get() = between.first
         val second: Node get() = between.second
 
-        val textField : Textfield by lazy {
-            val textField = Textfield(cp5, "textfield-${first.id}-${second.id}")
-                .setFont(createFont("Consolas", 14f))
-                .setSize(50, 20)
-                .setAutoClear(false)
-                .setCaptionLabel("")
-                .setColorBackground(color(255, 230))
-                .setColorForeground(color(255, 230))
-                .setColorValue(color(0))
-                .setColorActive(color(200))
-                .setColorCursor(color(0))
-                .setId(edgeIdCounter++)
-            textField
-        }
+        @Transient
+        var textField : Textfield = createTextField(this)
 
         var textFieldOffsetRatio : Float = 0.5f
 
@@ -283,13 +301,70 @@ class GraphApplet(val config: Config) : PApplet()
         }
     }
 
-    private val graph = Graph()
-    private val nodeMap = mutableMapOf<Int, Node>()
-    private val nodeList = mutableListOf<Node>()
-    private val edgeSet = mutableSetOf<Edge>()
-    private val edgeMap = mutableMapOf<Int, Edge>()
+    class GraphState(val nodeList: Serializable/*,
+                     val edgeSet: Serializable,
+                     val edgeMap: Serializable*/
+        /*val nodeList: List<Node>,
+                     val edgeSet: Set<Edge>,
+                     val edgeMap: Map<Int, Edge>*/)
+        : Serializable
 
-    private val cp5: ControlP5 by lazy { ControlP5(this) }
+    private fun saveGraphState(fileName: String, state: Serializable)
+    {
+        try {
+            val file = File(fileName)
+            if (!file.exists())
+                file.createNewFile()
+
+            val fos = FileOutputStream(file)
+            val oos = ObjectOutputStream(fos)
+            oos.writeObject(state)
+            oos.close()
+        } catch (e: FileNotFoundException) {
+            e.printStackTrace()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        } catch (e: ClassNotFoundException) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun readGraphState(fileName: String)
+            : GraphState
+    {
+        // read object from file
+        val fis = FileInputStream(fileName)
+        val ois = ObjectInputStream(fis)
+        val result = ois.readObject() as GraphState
+        ois.close()
+
+        return result
+    }
+
+    private fun createGraphState()
+            = GraphState(nodeList.toList() as Serializable/*,
+        edgeSet.toSet() as Serializable,
+        edgeMap.toMap() as Serializable*/)
+
+    private fun applyGraphState(state: GraphState)
+    {
+        /*
+        nodeList = state.nodeList
+        edgeSet = state.edgeSet
+        edgeMap = state.edgeMap
+
+        for (edge in edgeSet)
+            edge.textField = createTextField(edge)*/
+    }
+
+    private var graph = Graph()
+    // private val nodeMap = mutableMapOf<Int, Node>()
+    private var nodeList = mutableListOf<Node>()
+    private var edgeSet = mutableSetOf<Edge>()
+    // Maps Textfield IDs to its Edge.
+    private var edgeMap = mutableMapOf<Int, Edge>()
+
+    private lateinit var cp5: ControlP5
 
     private var createdNode: Node? = null
     private var clickedNode: Node? = null
@@ -358,6 +433,7 @@ class GraphApplet(val config: Config) : PApplet()
         // Same goes with any button.
         if (primButton.isPressed) return
         if (kruskalButton.isPressed) return
+        if (saveStateButton.isPressed) return
         if (dropDownList.isMousePressed) return
 
         val x = mouseX.toFloat()
@@ -536,7 +612,7 @@ class GraphApplet(val config: Config) : PApplet()
             highlightedNode = it
 
             graph.addVertex(it.id)
-            nodeMap[it.id] = it
+            // nodeMap[it.id] = it
         }
         createdNode = null
         clickedNode = null

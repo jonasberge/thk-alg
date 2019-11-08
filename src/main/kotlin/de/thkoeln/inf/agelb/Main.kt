@@ -1,14 +1,109 @@
 package de.thkoeln.inf.agelb
 
-import de.thkoeln.inf.agelb.adt.graph.Graph
-import de.thkoeln.inf.agelb.mst.KruskalStepwiseMST
-import de.thkoeln.inf.agelb.mst.PrimStepwiseMST
+import controlP5.ControlP5
 import de.thkoeln.inf.agelb.ui.GraphApplet
 import processing.core.PApplet
-import processing.core.PConstants
+import java.io.*
+import kotlin.math.abs
+
+private var counter = 1
+class Foo(val x: Float, val y: Float, radius: Float)
+
+{
+    var radius: Float = radius
+        set(value) { field = abs(value) }
+
+    val diameter: Float
+        get() = radius * 2
+
+    @Transient
+    val somethingReadOnly: Int = counter++
+}
+
+class FooContainer(val wrapped: Foo)
+    : Serializable
+{
+
+}
+
+private fun dump(o: Foo)
+{
+    println("x: ${o.x}, y: ${o.y}, radius: ${o.radius}, " +
+            "diameter: ${o.diameter}, somethingReadOnly: ${o.somethingReadOnly}")
+}
+
+private fun dump(container: FooContainer)
+{
+    dump(container.wrapped)
+}
+
+class SerializeWrapper(val foo: Foo, val fooContainer: FooContainer)
+    : Serializable
+
+fun writeAndRead(fileName: String, serializeWrapper: SerializeWrapper)
+    : SerializeWrapper
+{
+    val file = File(fileName)
+    if (!file.exists())
+        file.createNewFile()
+
+    val fos = FileOutputStream(file)
+    val oos = ObjectOutputStream(fos)
+    oos.writeObject(serializeWrapper)
+    oos.close()
+
+    // read object from file
+    val fis = FileInputStream(fileName)
+    val ois = ObjectInputStream(fis)
+    val result = ois.readObject() as SerializeWrapper
+    ois.close()
+
+    return result
+}
 
 fun main()
 {
+    /*
+    val file = File("graphs/cp5.ser")
+    if (!file.exists())
+        file.createNewFile()
+
+    val pApplet = PApplet()
+    val cp5 = ControlP5(pApplet)
+
+    val fos = FileOutputStream(file)
+    val oos = ObjectOutputStream(fos)
+    oos.writeObject(cp5)
+    oos.close()
+    */
+
+    /*
+    try {
+        val first = Foo(1f, 2f, 3f)
+        first.somethingReadOnly
+        val second = Foo(12f, 24f, 25f)
+        val container = FooContainer(second)
+
+        dump(second)
+        dump(container)
+        println()
+
+        val wrapper = SerializeWrapper(second, container)
+        val newWrapper = writeAndRead("graphs/wrapper.ser", wrapper)
+
+        println("equal? ${newWrapper.foo == newWrapper.fooContainer.wrapped}")
+
+        dump(newWrapper.foo)
+        dump(newWrapper.fooContainer)
+
+    } catch (e: FileNotFoundException) {
+        e.printStackTrace()
+    } catch (e: IOException) {
+        e.printStackTrace()
+    } catch (e: ClassNotFoundException) {
+        e.printStackTrace()
+    }*/
+
     val pa = PApplet()
 
     GraphApplet.run(
@@ -30,6 +125,7 @@ fun main()
             )
         )
     )
+
 
     /*
     val graph = Graph()
@@ -63,7 +159,7 @@ fun main()
     val x = 1
     */
 
-
+    /*
     val graph = Graph(2, 2)
 
     graph.addUndirectedEdge(0, 4, 15.0)
@@ -93,11 +189,8 @@ fun main()
 
     println("\n__Prim__")
 
-    val primBySteps = PrimStepwiseMST(graph)
-
-    primBySteps.steps().forEach {
+    PrimStepwiseMST(graph).steps().forEach {
         println(it)
-        println(primBySteps.queue)
     }
-
+    */
 }
