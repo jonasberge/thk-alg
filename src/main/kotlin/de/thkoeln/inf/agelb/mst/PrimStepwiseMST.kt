@@ -23,6 +23,8 @@ class PrimStepwiseMST(
     private val vertices = sourceGraph.vertices.toIntArray()
     private val verticesSize = vertices.size
 
+    private val vertexMapping = mutableMapOf<Int, Int>()
+
     // node's parent: default value null
     private val parent = hashMapOf<Int, Int?>()
 
@@ -33,7 +35,7 @@ class PrimStepwiseMST(
     private val priorityQueue: IndexedPriorityQueue<Double> = IndexedPriorityQueue(verticesSize)
 
     // public representation of priorityQueue
-    val queue: Set<Int> get() = priorityQueue.indices
+    val queue: Set<Int> get() = priorityQueue.indices.map { value(it) }.toSet()
 
     // public mst edges
     override fun edges() = edges.toSet()
@@ -41,25 +43,27 @@ class PrimStepwiseMST(
     override var complete: Boolean = false
         private set
 
+    init {
+        vertices.forEachIndexed { index, i -> vertexMapping[i] = index }
+    }
+
+    private fun index(id: Int) = vertexMapping[id]!!
+    private fun value(index: Int) = vertices[index]
+
     // returns all steps of the algorithm in a sequence
     override fun steps() = sequence<MSTStep> {
 
         // insert root node to priority queue and set the distance to parent (itself) to 0.0
-        priorityQueue.insert(root, 0.0)
+        priorityQueue.insert(index(root), 0.0)
         distTo[root] = 0.0
         parent[root] = root
 
         // work off priority queue
         while (priorityQueue.isNotEmpty()) {
             // extract node with minimum distance from priority queue
-            val inspectedNode = priorityQueue.poll().first
+            val inspectedNode = value(priorityQueue.poll().first)
 
-            yield(
-                Step(
-                    type = StepType.NODE_INSPECT,
-                    node = inspectedNode
-                )
-            )
+            yield(Step(StepType.NODE_INSPECT, inspectedNode))
 
             val parentNode = parent[inspectedNode]!!
 
@@ -69,18 +73,13 @@ class PrimStepwiseMST(
                 edges.add(edge)
                 weight += edge.weight
 
-                yield(
-                    Step(
-                        type = StepType.NODE_SELECT,
-                        node = inspectedNode,
-                        parentNode = parentNode
-                    )
-                )
+                yield(Step(StepType.NODE_SELECT, node = inspectedNode, parentNode = parentNode))
             }
 
             // look for nodes neighbor's
             for (edge in sourceGraph.adjacentEdges(inspectedNode)) {
                 val neighbor = edge.other(inspectedNode)
+                val neighborIndex = index(neighbor)
                 val distance = distTo[neighbor] ?: Double.POSITIVE_INFINITY
 
                 yield(
@@ -91,17 +90,17 @@ class PrimStepwiseMST(
                     )
                 )
 
-                if(priorityQueue.contains(neighbor) && edge.weight < distance) {
+                if(priorityQueue.contains(neighborIndex) && edge.weight < distance) {
                     // if neighbor is in queue but with a greater distance to its parent:
                     // update distance and parent and also decrease distance in pq
                     distTo[neighbor] = edge.weight
                     parent[neighbor] = inspectedNode
-                    priorityQueue.decreaseKey(neighbor, edge.weight)
+                    priorityQueue.decreaseKey(neighborIndex, edge.weight)
                 } else if(parent[neighbor] == null) {
                     // if neighbor isn't visited yet: set distance and parent and add to queue
                     distTo[neighbor] = edge.weight
                     parent[neighbor] = inspectedNode
-                    priorityQueue.insert(neighbor, edge.weight)
+                    priorityQueue.insert(neighborIndex, edge.weight)
                 }
             }
         }

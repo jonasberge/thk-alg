@@ -85,11 +85,16 @@ fun main()
     graph.addUndirectedEdge(1, 6, 10.0)
     graph.addUndirectedEdge(1, 7, 13.0)
 
+    graph.addUndirectedEdge(72, 6, 10.0)
+
     println("__Kruskal__")
 
-    KruskalStepwiseMST(graph).steps().forEach {
+    val kruskalBySteps = KruskalStepwiseMST(graph)
+    kruskalBySteps.steps().forEach {
         println(it)
     }
+
+    println("\nMST complete: ${kruskalBySteps.complete}")
 
     println("\n__Prim__")
 
@@ -99,5 +104,7 @@ fun main()
         println(it)
         println(primBySteps.queue)
     }
+
+    println("\nMST complete: ${primBySteps.complete}")
 
 }
