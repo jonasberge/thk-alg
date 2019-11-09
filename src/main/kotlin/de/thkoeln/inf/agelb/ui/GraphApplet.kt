@@ -12,8 +12,6 @@ import controlP5.Textlabel
 import java.util.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor
-import processing.event.KeyEvent
-import processing.event.MouseEvent
 import java.io.File
 
 private fun distSq(x1: Float, y1: Float, x2: Float, y2: Float)
@@ -93,6 +91,7 @@ class GraphApplet(val config: Config) : PApplet()
     private lateinit var saveStateButton: Button
     private lateinit var loadStateButton : Button
 
+    private var isMstComplete: Boolean = false
     private var isSolvingWithPrim: Boolean = false
     private var isSolvingWithKruskal: Boolean = false
     private var isSolving: Boolean
@@ -108,8 +107,26 @@ class GraphApplet(val config: Config) : PApplet()
     private val selectedEdges: MutableSet<Edge> = mutableSetOf()
     private var solutionSteps: List<MSTStep>? = null
 
+    private fun updateStepDescription(step: PrimStepwiseMST.Step)
+    {
+        when (step.type) {
+            PrimStepwiseMST.StepType.NEIGHBOR_INSPECT -> {
+                informationTextLabel.setText("Untersuche Nachbarn"
+                        + " des zuletzt ausgewählten Knotens.")
+            }
+            PrimStepwiseMST.StepType.NODE_SELECT -> {
+                informationTextLabel.setText("Füge den Knoten dem Baum"
+                        + " hinzu, welcher über eine Kante erreichbar ist"
+                        + " welche das geringfügigste Gewicht hat.")
+            }
+            else -> { }
+        }
+    }
+
     private fun revertStepPrim(step: PrimStepwiseMST.Step)
     {
+        updateStepDescription(step)
+
         when (step.type) {
             PrimStepwiseMST.StepType.NODE_SELECT -> {
                 selectedNodeHistory.pop()
@@ -121,6 +138,8 @@ class GraphApplet(val config: Config) : PApplet()
 
     private fun applyStepPrim(step: PrimStepwiseMST.Step)
     {
+        updateStepDescription(step)
+
         when (step.type) {
             PrimStepwiseMST.StepType.NODE_SELECT -> {
                 selectedNodeHistory.push(nodeMap[step.node]!!)
@@ -146,15 +165,16 @@ class GraphApplet(val config: Config) : PApplet()
             .setFont(createFont("Consolas", 12f))
             .setColor(color(0))
 
-
         cancelSolveButton = createButton("- Abbrechen -", 0f, 0f, 150, 20) {
-            println("cancelling algorithm")
             nextStepButton.hide()
             previousStepButton.hide()
             cancelSolveButton.hide()
             primButton.show()
             kruskalButton.show()
             informationTextLabel.hide()
+            loadStateButton.show()
+            saveStateButton.show()
+            isMstComplete = false
             isSolving = false
             isSolverDone = false
             selectedEdges.clear()
@@ -166,26 +186,47 @@ class GraphApplet(val config: Config) : PApplet()
 
         nextStepButton = createButton("Nächster Schritt", 0f, 0f, 150, 20) {
             solutionSteps?.let { steps ->
-                if (solverCurrentStep < steps.size)
+                val before = solverCurrentStep
+                if (solverCurrentStep < steps.size) {
                     solverCurrentStep++
-                else isSolverDone = true
-                if (isSolvingWithPrim && solverCurrentStep > 0) {
-                    val step = steps[solverCurrentStep - 1]
-                    if (isSolvingWithPrim)
+                    if (isSolvingWithPrim) {
+                        val step = steps[solverCurrentStep - 1]
                         applyStepPrim(step as PrimStepwiseMST.Step)
+                    }
                 }
+                else {
+                    isSolverDone = true
+                    val text: String = if (isMstComplete)
+                        "Lösung gefunden - Der minimal-spannende" +
+                                " Baum ist vollständig, d.h. alle Knoten" +
+                                " sind enthalten."
+                    else
+                        "Lösung gefunden - Der minimal-spannende" +
+                                " Baum ist nicht vollständig, d.h. dass" +
+                                " einige Knoten nicht enthalten sind."
+                    informationTextLabel.setText(text)
+                }
+                println("before:", before, "/ after:", solverCurrentStep)
+                Unit
             }
         }
 
         previousStepButton = createButton("Vorheriger Schritt", 0f, 0f, 150, 20) {
             solutionSteps?.let { steps ->
                 // TODO: Differentiate between Prim and Kruskal.
-                isSolverDone = false
-                if (solverCurrentStep > 0)
+                if (isSolverDone) {
+                    isSolverDone = false
+                    return@let
+                }
+                val before = solverCurrentStep
+                if (solverCurrentStep > 0) {
                     revertStepPrim(steps[solverCurrentStep - 1]
                             as PrimStepwiseMST.Step)
-                if (solverCurrentStep > 0)
                     solverCurrentStep--
+                }
+                if (solverCurrentStep == 0)
+                    informationTextLabel.setText("Startknoten wurde ausgewählt.")
+                println("before:", before, "/ after:", solverCurrentStep)
             }
         }
 
@@ -200,6 +241,9 @@ class GraphApplet(val config: Config) : PApplet()
             kruskalButton.hide()
             cancelSolveButton.show()
             informationTextLabel.show()
+
+            loadStateButton.hide()
+            saveStateButton.hide()
         }
 
         kruskalButton = createButton("Kruskal's Algorithmus", 155f, 0f, 150, 20) {
@@ -212,6 +256,9 @@ class GraphApplet(val config: Config) : PApplet()
             previousStepButton.show()
             cancelSolveButton.show()
             informationTextLabel.show()
+
+            loadStateButton.hide()
+            saveStateButton.hide()
         }
 
         saveStateButton = createButton("Graph speichern", 0f, 25f, 150, 20) {
@@ -321,7 +368,8 @@ class GraphApplet(val config: Config) : PApplet()
             line(node.x + direction.x, node.y + direction.y, mouseX.toFloat(), mouseY.toFloat())
         }
 
-        informationTextLabel.draw(this)
+        if (informationTextLabel.isVisible)
+            informationTextLabel.draw(this)
 
         // === PRIM === //
 
@@ -345,23 +393,18 @@ class GraphApplet(val config: Config) : PApplet()
         solutionSteps?.takeIf {
             isSolvingWithPrim && solverCurrentStep > 0
         }?.let { steps ->
-            if (isSolverDone) {
-                informationTextLabel.setText("Fertig.")
+            if (isSolverDone)
                 return@let
-            }
 
             val step = steps[solverCurrentStep - 1] as PrimStepwiseMST.Step
 
             stroke(config.node.strokeColor)
             when (step.type) {
                 PrimStepwiseMST.StepType.NEIGHBOR_INSPECT -> {
-                    informationTextLabel.setText("Untersuche Nachbarn des zuletzt ausgewählten Knotens.")
                     fill(color(200, 255, 155)) // DEEP YELLOW
                     nodeMap[step.node]?.draw(this)
                 }
                 PrimStepwiseMST.StepType.NODE_SELECT -> {
-                    informationTextLabel.setText("Füge den Knoten dem Baum hinzu, welcher über eine " +
-                            "Kante erreichbar ist welche das geringfügigste Gewicht hat.")
                     fill(color(0, 255, 0)) // DEEP GREEN
 
                     val node = nodeMap[step.node]!!
@@ -915,11 +958,12 @@ class GraphApplet(val config: Config) : PApplet()
             if (isSolving) {
                 if (isSolvingWithPrim && solutionSteps == null) {
                     primRootNode = clicked
-                    solutionSteps = PrimStepwiseMST(graph, clicked.id)
-                        .steps().toList()
+                    val solver = PrimStepwiseMST(graph, clicked.id)
+                    solutionSteps = solver.steps().toList()
+                    isMstComplete = solver.complete
                     nextStepButton.show()
                     previousStepButton.show()
-                    informationTextLabel.setText("")
+                    informationTextLabel.setText("Startknoten wurde ausgewählt.")
                 }
                 else if (isSolvingWithKruskal && solutionSteps == null) {
                     solutionSteps = KruskalStepwiseMST(graph).steps().toList()
@@ -1047,7 +1091,7 @@ class GraphApplet(val config: Config) : PApplet()
             if (ratio < 0) return a
             if (ratio > 1) return b
         }
-        return PVector(a.x + t * v, a.y + t * w)
 
+        return PVector(a.x + ratio * v, a.y + ratio * w)
     }
 }
