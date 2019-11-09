@@ -7,10 +7,14 @@ import kotlin.math.pow
 import controlP5.*
 import controlP5.Textfield
 import controlP5.ControlEvent
-import de.thkoeln.inf.agelb.SerializeWrapper
 import de.thkoeln.inf.agelb.mst.*
-import processing.core.PFont
-import java.io.*
+import controlP5.Textlabel
+import java.util.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.cbor.Cbor
+import processing.event.KeyEvent
+import processing.event.MouseEvent
+import java.io.File
 
 private fun distSq(x1: Float, y1: Float, x2: Float, y2: Float)
         = (x1 - x2).pow(2) + (y1 - y2).pow(2)
@@ -44,69 +48,90 @@ class GraphApplet(val config: Config) : PApplet()
 
     fun controlEvent(event: ControlEvent)
     {
-        println(event.controller.name)
+        // println(event.controller.name)
 
-        edgeMap[event.id]?.let { edge ->
-            edge.textField.isFocus = false
+        edgeTextFieldMap[event.id]?.let { edge ->
+            edge.textField!!.isFocus = false
             graph.getEdge(edge.first.id to edge.second.id)?.let { graphEdge ->
-                event.stringValue.runCatching { this.toDouble() }
+                event.stringValue.replace(',', '.')
+                    .runCatching { this.toDouble() }
                     .onSuccess { graphEdge.weight = it }
                     .onFailure { graphEdge.weight = 0.0 }
-                edge.textField.text = graphEdge.weight.toString()
+                edge.textField!!.text = graphEdge.weight.toString()
             }
         }
     }
 
-    private val primButton : Button by lazy {
-        Button(cp5, "prim-button")
-            .setCaptionLabel("Prim's Algorithmus")
-            .setFont(createFont("Consolas", 12f))
-            .setPosition(0f, 0f)
-            .setWidth(150)
-            .setHeight(20)
-            .onClick { println("clicked Prim") }
-    }
+    private lateinit var primButton : Button
+    private lateinit var kruskalButton : Button
 
-    private val kruskalButton : Button by lazy {
-        Button(cp5, "kruskal-button")
-            .setCaptionLabel("Kruskal's Algorithmus")
-            .setFont(createFont("Consolas", 12f))
-            .setPosition(155f, 0f)
-            .setWidth(150)
-            .setHeight(20)
-            .onClick { println("clicked Kruskal") }
-    }
+    private var solverCurrentStep = 0
+    private var isSolverDone: Boolean = false
 
-    private val saveStateButton : Button by lazy {
-        Button(cp5, "save-state-button")
-            .setCaptionLabel("Graph abspeichern")
-            .setFont(createFont("Consolas", 12f))
-            .setPosition(0f, 25f)
-            .setWidth(150)
-            .setHeight(20)
-            .onClick {
-                val state = createGraphState()
-                saveGraphState("graphs/default.ser", state)
-            }
-    }
-
-    private val dropDownList : DropdownList by lazy {
-        DropdownList(cp5, "saved-graphs")
-            .setPosition(310f, 0f)
-            .setWidth(150)
-            .setHeight(20)
-            .setBarHeight(20)
-            .setItemHeight(20)
-    }
-
-    fun solve(strategy: StepwiseMST)
+    private var buttonIdCounter: Int = 1
+    private val buttonToListener = mutableMapOf<Button, () -> Unit>()
+    private fun createButton(title: String, x: Float, y: Float, w: Int, h: Int,
+                             onClick: () -> Unit) : Button
     {
+        val button = Button(cp5, "button-${buttonIdCounter++}")
+            .setCaptionLabel(title)
+            .setFont(createFont("Consolas", 12f))
+            .setPosition(x, y)
+            .setWidth(w)
+            .setHeight(h)
+            .onClick { onClick() }
+        buttonToListener[button] = onClick
+        return button
+    }
+
+    private lateinit var informationTextLabel : Textlabel
+
+    private lateinit var nextStepButton : Button
+    private lateinit var previousStepButton : Button
+    private lateinit var cancelSolveButton: Button
+
+    private lateinit var saveStateButton: Button
+    private lateinit var loadStateButton : Button
+
+    private var isSolvingWithPrim: Boolean = false
+    private var isSolvingWithKruskal: Boolean = false
+    private var isSolving: Boolean
+        get() = isSolvingWithPrim || isSolvingWithKruskal
+        set(value) {
+            require(!value) { "Can't solve with both algorithms" }
+            isSolvingWithPrim = value
+            isSolvingWithKruskal = value
+        }
+
+    private var primRootNode: Node? = null
+    private var selectedNodeHistory: Stack<Node> = Stack()
+    private val selectedEdges: MutableSet<Edge> = mutableSetOf()
+    private var solutionSteps: List<MSTStep>? = null
+
+    private fun revertStepPrim(step: PrimStepwiseMST.Step)
+    {
+        when (step.type) {
+            PrimStepwiseMST.StepType.NODE_SELECT -> {
+                selectedNodeHistory.pop()
+                selectedEdges.remove(edgeMap[step.parentNode!! to step.node!!]!!)
+            }
+            else -> { }
+        }
+    }
+
+    private fun applyStepPrim(step: PrimStepwiseMST.Step)
+    {
+        when (step.type) {
+            PrimStepwiseMST.StepType.NODE_SELECT -> {
+                selectedNodeHistory.push(nodeMap[step.node]!!)
+                selectedEdges.add(edgeMap[step.parentNode!! to step.node!!]!!)
+            }
+            else -> { }
+        }
     }
 
     override fun setup()
     {
-        cp5 = ControlP5(this)
-
         surface.setResizable(config.isResizable)
         surface.setSize(config.width, config.height)
 
@@ -117,22 +142,124 @@ class GraphApplet(val config: Config) : PApplet()
         previousWidth = width
         previousHeight = height
 
-        primButton
-        kruskalButton
-        saveStateButton
-        dropDownList
+        informationTextLabel = Textlabel(cp5, "", 155, 0, 150, 20)
+            .setFont(createFont("Consolas", 12f))
+            .setColor(color(0))
 
-        // loadSavedGraphs()
+
+        cancelSolveButton = createButton("- Abbrechen -", 0f, 0f, 150, 20) {
+            println("cancelling algorithm")
+            nextStepButton.hide()
+            previousStepButton.hide()
+            cancelSolveButton.hide()
+            primButton.show()
+            kruskalButton.show()
+            informationTextLabel.hide()
+            isSolving = false
+            isSolverDone = false
+            selectedEdges.clear()
+            primRootNode = null
+            selectedNodeHistory.clear()
+            solutionSteps = null
+            solverCurrentStep = 0
+        }
+
+        nextStepButton = createButton("Nächster Schritt", 0f, 0f, 150, 20) {
+            solutionSteps?.let { steps ->
+                if (solverCurrentStep < steps.size)
+                    solverCurrentStep++
+                else isSolverDone = true
+                if (isSolvingWithPrim && solverCurrentStep > 0) {
+                    val step = steps[solverCurrentStep - 1]
+                    if (isSolvingWithPrim)
+                        applyStepPrim(step as PrimStepwiseMST.Step)
+                }
+            }
+        }
+
+        previousStepButton = createButton("Vorheriger Schritt", 0f, 0f, 150, 20) {
+            solutionSteps?.let { steps ->
+                // TODO: Differentiate between Prim and Kruskal.
+                isSolverDone = false
+                if (solverCurrentStep > 0)
+                    revertStepPrim(steps[solverCurrentStep - 1]
+                            as PrimStepwiseMST.Step)
+                if (solverCurrentStep > 0)
+                    solverCurrentStep--
+            }
+        }
+
+
+        primButton = createButton("Prim's Algorithmus", 0f, 0f, 150, 20) {
+            isSolvingWithPrim = true
+            selectedNode = null // Deselect any selected node.
+
+            informationTextLabel.setText("Wähle einen Startknoten...")
+
+            primButton.hide()
+            kruskalButton.hide()
+            cancelSolveButton.show()
+            informationTextLabel.show()
+        }
+
+        kruskalButton = createButton("Kruskal's Algorithmus", 155f, 0f, 150, 20) {
+            isSolvingWithKruskal = true
+            selectedNode = null // Deselect any selected node.
+
+            primButton.hide()
+            kruskalButton.hide()
+            nextStepButton.show()
+            previousStepButton.show()
+            cancelSolveButton.show()
+            informationTextLabel.show()
+        }
+
+        saveStateButton = createButton("Graph speichern", 0f, 25f, 150, 20) {
+            saveGraphState("graphs/default.ser", createGraphState())
+        }
+
+        loadStateButton = createButton("Graph laden", 0f, 0f, 150, 20) {
+            val state = readGraphState("graphs/default.ser")
+            state?.let { applyGraphState(it) }
+        }
+
+        updateButtonPositions()
+
+        nextStepButton.hide()
+        previousStepButton.hide()
+        cancelSolveButton.hide()
+        informationTextLabel.hide()
+    }
+
+    private fun updateButtonPositions()
+    {
+        primButton.position[1] = height - 20f
+        kruskalButton.position[1] = height - 20f
+
+        informationTextLabel.position[1] = height - 20f
+
+        nextStepButton.position[1] = height - 50f - 20f
+        previousStepButton.position[1] = height - 25f - 20f
+        cancelSolveButton.position[1] = height - 20f
     }
 
     override fun draw()
     {
+        // TODO: Move a loaded graph/forest to the center of the window.
+
         if (width != previousWidth || height != previousHeight) {
             val dx = (width - previousWidth) / 2
             val dy = (height - previousHeight) / 2
             scrollBy(dx, dy)
             previousWidth = width
             previousHeight = height
+
+            updateButtonPositions()
+
+            // https://github.com/sojamo/controlp5/issues/26
+            // One cannot interact with ControlP5 elements within the
+            // space that is added when resizing the applet window.
+            cp5.setGraphics(this, 0, 0)
         }
 
         clear()
@@ -143,27 +270,22 @@ class GraphApplet(val config: Config) : PApplet()
         nodeList.forEach { it.drawPadding(this) }
 
         edgeSet.forEach { edge ->
-            val a = PVector(edge.first.x, edge.first.y)
-            val b = PVector(edge.second.x, edge.second.y)
-            val aToB = b.sub(a).setMag(edge.first.radius)
-
-            val x1 = edge.first.x + aToB.x
-            val y1 = edge.first.y + aToB.y
-            val x2 = edge.second.x - aToB.x
-            val y2 = edge.second.y - aToB.y
+            val (start, end) = edgeLineBetween(edge.first, edge.second)
 
             stroke(config.node.strokeColor)
-            line(x1, y1, x2, y2)
+            if (isSolving && primRootNode != null)
+                stroke(color(0, 40))
+            line(start.x, start.y, end.x, end.y)
 
             noStroke()
-            val textField = edge.textField
-            val firstVector = PVector(x1, y1)
-            val secondVector = PVector(x2, y2)
+            val textField = edge.textField!!
+            val firstVector = PVector(start.x, start.y)
+            val secondVector = PVector(end.x, end.y)
             val firstToSecond = secondVector.sub(firstVector)
             firstToSecond.setMag(firstToSecond.mag() * edge.textFieldOffsetRatio)
 
-            val tx = x1 + firstToSecond.x - textField.width / 2
-            val ty = y1 + firstToSecond.y - textField.height / 2
+            val tx = start.x + firstToSecond.x - textField.width / 2
+            val ty = start.y + firstToSecond.y - textField.height / 2
 
             textField.setPosition(tx, ty)
         }
@@ -198,27 +320,120 @@ class GraphApplet(val config: Config) : PApplet()
             stroke(0, 80f)
             line(node.x + direction.x, node.y + direction.y, mouseX.toFloat(), mouseY.toFloat())
         }
+
+        informationTextLabel.draw(this)
+
+        // === PRIM === //
+
+        primRootNode?.let {
+            stroke(config.node.strokeColor)
+            fill(color(50, 80, 180)) // BLUE
+            it.draw(this)
+        }
+
+        selectedEdges.forEach { edge ->
+            stroke(config.node.strokeColor)
+            fill(color(50, 80, 180)) // BLUE
+            edge.first.draw(this)
+            edge.second.draw(this)
+
+            stroke(color(50, 80, 180)) // BLUE
+            val (start, end) = edgeLineBetween(edge.first, edge.second)
+            line(start.x, start.y, end.x, end.y)
+        }
+
+        solutionSteps?.takeIf {
+            isSolvingWithPrim && solverCurrentStep > 0
+        }?.let { steps ->
+            if (isSolverDone) {
+                informationTextLabel.setText("Fertig.")
+                return@let
+            }
+
+            val step = steps[solverCurrentStep - 1] as PrimStepwiseMST.Step
+
+            stroke(config.node.strokeColor)
+            when (step.type) {
+                PrimStepwiseMST.StepType.NEIGHBOR_INSPECT -> {
+                    informationTextLabel.setText("Untersuche Nachbarn des zuletzt ausgewählten Knotens.")
+                    fill(color(200, 255, 155)) // DEEP YELLOW
+                    nodeMap[step.node]?.draw(this)
+                }
+                PrimStepwiseMST.StepType.NODE_SELECT -> {
+                    informationTextLabel.setText("Füge den Knoten dem Baum hinzu, welcher über eine " +
+                            "Kante erreichbar ist welche das geringfügigste Gewicht hat.")
+                    fill(color(0, 255, 0)) // DEEP GREEN
+
+                    val node = nodeMap[step.node]!!
+                    node.draw(this)
+
+                    /*stroke(color(200, 200, 0))
+                    val (start, end) = edgeLineBetween(node, nodeMap[step.parentNode]!!)
+                    line(start.x, start.y, end.x, end.y)*/
+                }
+                else -> { }
+            }
+
+            stroke(color(130, 150, 0))
+            step.queue.forEach { edge ->
+                val (start, end) = edgeLineBetween(nodeMap[edge.from]!!, nodeMap[edge.to]!!)
+                line(start.x, start.y, end.x, end.y)
+            }
+
+            // The edge with the least weight is stored first.
+            stroke(color(200, 230, 20))
+            step.queue.firstOrNull()?.let { edge ->
+                val (start, end) = edgeLineBetween(nodeMap[edge.from]!!, nodeMap[edge.to]!!)
+                line(start.x, start.y, end.x, end.y)
+            }
+        }
+
+        if (selectedNodeHistory.isNotEmpty() && !isSolverDone)
+            selectedNodeHistory.peek().let { node ->
+                stroke(config.node.strokeColor)
+                fill(color(230, 220, 50)) // YELLOW
+                node.draw(this)
+
+                fill(color(200, 250, 215))
+                ellipse(node.x, node.y, node.radius, node.radius)
+            }
     }
 
     private var nodeIdCounter = 1
 
-    inner class Node(var x: Float, var y: Float,
-                     radius: Float, padding: Float)
-        : Serializable
+    private fun createNode(x: Float, y: Float) : Node
     {
-        var radius: Float = radius
-            set(value) { field = abs(value) }
+        return Node(x, y, config.node.radius, config.node.padding,
+            config.node.strokeWeight, nodeIdCounter++)
+    }
 
-        var padding: Float = padding
-            set (value) { field = abs(value) }
+    private fun updateNode(node: Node)
+    {
+        node.radius = config.node.radius
+        node.padding = config.node.padding
+        node.strokeWeight = config.node.strokeWeight
+    }
+
+    @Serializable
+    class Node(var x: Float, var y: Float,
+               private var _radius: Float,
+               private var _padding: Float,
+               var strokeWeight: Float,
+               var id: Int)
+    {
+        var radius: Float
+            get() = _radius
+            set(value) { _radius = abs(value) }
+
+        var padding: Float
+            get() = _padding
+            set(value) { _padding = abs(value) }
 
         val realPadding
-            get() = this.padding + config.node.strokeWeight
+            get() = this.padding + strokeWeight
 
         val diameter: Float
             get() = radius * 2
-
-        val id: Int = nodeIdCounter++ // by lazy { nodeIdCounter++ }
 
         fun draw(context: PApplet)
         {
@@ -260,9 +475,10 @@ class GraphApplet(val config: Config) : PApplet()
 
     private var edgeIdCounter = 1
 
-    private fun createTextField(edge: Edge) : Textfield
+    private fun createTextField() : Textfield
     {
-        return Textfield(cp5, "textfield-${edge.first.id}-${edge.second.id}")
+        val id = edgeIdCounter++
+        return Textfield(cp5, "textfield-$id")
             .setFont(createFont("Consolas", 14f))
             .setSize(50, 20)
             .setAutoClear(false)
@@ -272,17 +488,17 @@ class GraphApplet(val config: Config) : PApplet()
             .setColorValue(color(0))
             .setColorActive(color(200))
             .setColorCursor(color(0))
-            .setId(edgeIdCounter++)
+            .setId(id)
     }
 
-    inner class Edge(val between: Pair<Node, Node>)
-        : Serializable
+    @Serializable
+    class Edge(val between: Pair<Node, Node>)
     {
         val first: Node get() = between.first
         val second: Node get() = between.second
 
-        @Transient
-        var textField : Textfield = createTextField(this)
+        @kotlinx.serialization.Transient
+        var textField : Textfield? = null
 
         var textFieldOffsetRatio : Float = 0.5f
 
@@ -301,70 +517,166 @@ class GraphApplet(val config: Config) : PApplet()
         }
     }
 
-    class GraphState(val nodeList: Serializable/*,
-                     val edgeSet: Serializable,
-                     val edgeMap: Serializable*/
-        /*val nodeList: List<Node>,
-                     val edgeSet: Set<Edge>,
-                     val edgeMap: Map<Int, Edge>*/)
-        : Serializable
+    /*
+    Graphstate stuff in here
+     */
 
-    private fun saveGraphState(fileName: String, state: Serializable)
+    @Serializable
+    class GraphState(val nodeList: List<Node>,
+                     val nodeMap: Map<Int, Int>,
+                     val edgeList: List<GraphState.Edge>)
     {
-        try {
-            val file = File(fileName)
-            if (!file.exists())
-                file.createNewFile()
+        @Serializable
+        class Edge(val first: Int, val second: Int, val weight: Double)
+    }
 
-            val fos = FileOutputStream(file)
-            val oos = ObjectOutputStream(fos)
-            oos.writeObject(state)
-            oos.close()
-        } catch (e: FileNotFoundException) {
-            e.printStackTrace()
-        } catch (e: IOException) {
-            e.printStackTrace()
-        } catch (e: ClassNotFoundException) {
-            e.printStackTrace()
+    private fun createGraphState() : GraphState
+    {
+        val theNodeList = nodeList.toList() // index -> node
+        val nodeToIndex = mutableMapOf<Node, Int>() // node -> node index
+        theNodeList.mapIndexed { index, node -> nodeToIndex[node] = index }
+
+        val theNodeMap = mutableMapOf<Int, Int>() // node id -> node index
+        nodeMap.forEach { (id, node) -> theNodeMap[id] = nodeToIndex[node]!! }
+
+        // edge -> (node index) to (node index)
+        val edgeToNodeIndexPair = mutableMapOf<Edge, Pair<Int, Int>>()
+        edgeSet.forEach { edge ->
+            val pair = nodeToIndex[edge.first]!! to nodeToIndex[edge.second]!!
+            edgeToNodeIndexPair[edge] = pair
         }
+
+        // index -> state edge (node index, node index, weight)
+        val theEdgeList = mutableListOf<GraphState.Edge>()
+        edgeSet.forEach { edge ->
+            val graphEdge = graph.getEdge(edge.first.id to edge.second.id)!!
+            val indexPair = edgeToNodeIndexPair[edge]!!
+            theEdgeList.add(GraphState.Edge(indexPair.first,
+                indexPair.second, graphEdge.weight))
+        }
+
+        return GraphState(theNodeList, theNodeMap.toMap(), theEdgeList)
     }
-
-    private fun readGraphState(fileName: String)
-            : GraphState
-    {
-        // read object from file
-        val fis = FileInputStream(fileName)
-        val ois = ObjectInputStream(fis)
-        val result = ois.readObject() as GraphState
-        ois.close()
-
-        return result
-    }
-
-    private fun createGraphState()
-            = GraphState(nodeList.toList() as Serializable/*,
-        edgeSet.toSet() as Serializable,
-        edgeMap.toMap() as Serializable*/)
 
     private fun applyGraphState(state: GraphState)
     {
-        /*
-        nodeList = state.nodeList
-        edgeSet = state.edgeSet
-        edgeMap = state.edgeMap
-
+        edgeTextFieldMap.clear()
         for (edge in edgeSet)
-            edge.textField = createTextField(edge)*/
+            cp5.remove(edge.textField!!.name)
+
+        nodeList.clear()
+        nodeMap.clear()
+
+        edgeSet.clear()
+        edgeMap.clear()
+
+        graph.clear()
+
+        edgeIdCounter = 1
+
+        // The node id counter needs to be larger than any existing id
+        // of the loaded nodes. Otherwise, if it would be reset to 1,
+        // we could collide with existing nodes when creating one.
+        nodeIdCounter = 1
+        for (node in state.nodeList)
+            nodeIdCounter = max(nodeIdCounter, node.id)
+        nodeIdCounter += 1
+
+        // Add all nodes.
+        // nodeList.addAll(state.nodeList)
+        for (node in state.nodeList) {
+            nodeList.add(node)
+            graph.addVertex(node.id)
+        }
+        for ((id, index) in state.nodeMap)
+            nodeMap[id] = state.nodeList[index]
+
+        // Recreate all edges.
+        for (stateEdge in state.edgeList) {
+            val first = nodeList[stateEdge.first]
+            val second = nodeList[stateEdge.second]
+            val edge = Edge(first to second)
+
+            edge.textField = createTextField()
+            edge.textField!!.text = stateEdge.weight.toString()
+            edgeTextFieldMap[edge.textField!!.id] = edge
+
+            edgeSet.add(edge)
+            edgeMap[first.id to second.id] = edge
+            edgeMap[second.id to first.id] = edge
+
+            graph.addUndirectedEdge(first.id, second.id, stateEdge.weight)
+        }
+
+        for (node in nodeList)
+            updateNode(node)
+
+        // scrollBy
+
+        if (nodeList.size == 0)
+            return
+
+        var minX = Float.POSITIVE_INFINITY
+        var maxX = Float.NEGATIVE_INFINITY
+        var minY = Float.POSITIVE_INFINITY
+        var maxY = Float.NEGATIVE_INFINITY
+
+        for (node in nodeList) {
+            minX = min(minX, node.x)
+            maxX = max(maxX, node.x)
+            minY = min(minY, node.y)
+            maxY = max(maxY, node.y)
+        }
+
+        val w = maxX - minX
+        val h = maxY - minY
+
+        val x = (width - w) / 2
+        val y = (height - h) / 2
+
+        val xOffset = x - minX
+        val yOffset = y - minY
+
+        scrollBy(xOffset, yOffset)
     }
 
+    private fun saveGraphState(fileName: String, state: GraphState)
+    {
+        val cbor = Cbor()
+        val cborData = cbor.dump(GraphState.serializer(), state)
+        File(fileName)
+            .also {
+                if(!it.exists()) {
+                    it.parentFile.mkdirs()
+                    it.createNewFile()
+                }
+            }
+            .writeBytes(cborData)
+    }
+
+    private fun readGraphState(fileName: String) : GraphState?
+    {
+        val file = File(fileName)
+        if (!file.exists())
+            return null
+
+        val cbor = Cbor()
+        val cborData = file.readBytes()
+        return cbor.load(GraphState.serializer(), cborData)
+    }
+
+    /* == ... == */
+
     private var graph = Graph()
-    // private val nodeMap = mutableMapOf<Int, Node>()
+    private val nodeMap = mutableMapOf<Int, Node>()
     private var nodeList = mutableListOf<Node>()
     private var edgeSet = mutableSetOf<Edge>()
     // Maps Textfield IDs to its Edge.
-    private var edgeMap = mutableMapOf<Int, Edge>()
+    private var edgeTextFieldMap = mutableMapOf<Int, Edge>()
+    // Maps a pair of Nodes to their edge.
+    private var edgeMap = mutableMapOf<Pair<Int, Int>, Edge>()
 
-    private lateinit var cp5: ControlP5
+    private val cp5: ControlP5 by lazy { ControlP5(this) }
 
     private var createdNode: Node? = null
     private var clickedNode: Node? = null
@@ -380,6 +692,9 @@ class GraphApplet(val config: Config) : PApplet()
     private var isScrolling: Boolean = false
     private var isDragging: Boolean = false
     private var isDraggingTextfield: Boolean = false
+    private var hasMouseDragged: Boolean = false
+
+    private var clickedButton: Button? = null
 
     private var previousWidth: Int = 0
     private var previousHeight: Int = 0
@@ -400,6 +715,10 @@ class GraphApplet(val config: Config) : PApplet()
         // TODO: show how many nodes are off-screen at the side of the window.
         //  additionally: maybe show a map of all existing nodes.
 
+        // TODO: shift-drag rotates around initial click-point.
+
+        // TODO: TAB and SHIFT-TAB to switch between labels.
+
         // Click on a node:
         // > single click: selects and highlights node.
         //   a line appears starting from that node, representing an edge.
@@ -417,29 +736,39 @@ class GraphApplet(val config: Config) : PApplet()
 
         // Do not pass click events through if a text field is pressed.
         for (edge in edgeSet) {
-            if (edge.textField.isMousePressed) {
-                println("clicked an edge..")
+            val textField = edge.textField!!
+            if (!isSolving && textField.isMousePressed) {
+                val graphEdge = graph.getEdge(edge.first.id, edge.second.id)!!
+                if (graphEdge.weight == 0.0)
+                    edge.textField!!.clear()
                 clickedTextfieldEdge = edge
             }
-            else if (edge.textField.isFocus)
-                // Submit the text field when the user clicks outside
-                // of it and doesn't press enter like it's expected.
-                edge.textField.submit()
+            else if (textField.isFocus) {
+                if (isSolving)
+                    // Do not focus i.e. edit any textfield when solving.
+                    textField.isFocus = false
+                else
+                    // Submit the text field when the user clicks outside
+                    // of it and doesn't press enter like it would be expected.
+                    textField.submit()
+            }
         }
 
         if (clickedTextfieldEdge != null)
             return
 
         // Same goes with any button.
-        if (primButton.isPressed) return
-        if (kruskalButton.isPressed) return
-        if (saveStateButton.isPressed) return
-        if (dropDownList.isMousePressed) return
+        cp5.getAll(Button::class.java).firstOrNull {
+            it.isPressed
+        } ?.let {
+            clickedButton = it
+            return
+        }
 
         val x = mouseX.toFloat()
         val y = mouseY.toFloat()
 
-        val node = Node(x, y, config.node.radius, config.node.padding)
+        val node = createNode(x, y)
 
         clickedX = x
         clickedY = y
@@ -456,7 +785,9 @@ class GraphApplet(val config: Config) : PApplet()
                 isNodePlaceable = false
         }
 
-        if (isNodePlaceable && mouseButton == LEFT)
+        // Only create a node when: not solving, it's placeable and the
+        // left mouse button was clicked.
+        if (!isSolving && isNodePlaceable && mouseButton == LEFT)
             createdNode = node
     }
 
@@ -480,10 +811,12 @@ class GraphApplet(val config: Config) : PApplet()
     {
         super.mouseDragged()
 
+        hasMouseDragged = true
+
         clickedTextfieldEdge?.let { edge ->
             if (!isDraggingTextfield) {
                 isDraggingTextfield = true
-                edge.textField.submit()
+                edge.textField!!.submit()
             }
 
             val (lineStart, lineEnd) = edgeLineBetween(edge.first, edge.second)
@@ -497,7 +830,7 @@ class GraphApplet(val config: Config) : PApplet()
             val fullDistance = PVector.sub(lineEnd, lineStart)
             edge.textFieldOffsetRatio = distance.mag() / fullDistance.mag()
         } ?: clickedNode?.also { node ->
-            if (mouseButton != LEFT)
+            if (clickedButton != null || mouseButton != LEFT)
                 return@also
 
             if (!isDragging) {
@@ -527,7 +860,7 @@ class GraphApplet(val config: Config) : PApplet()
                 }
             }
         } ?: run {
-            if (mouseButton != LEFT)
+            if (clickedButton != null || mouseButton != LEFT)
                 return@run
 
             if (!isScrolling) {
@@ -548,15 +881,52 @@ class GraphApplet(val config: Config) : PApplet()
         }
     }
 
+    fun boxContains(bx: Float, by: Float,
+                    width: Float, height: Float,
+                    mX: Float, mY: Float) : Boolean
+            = mX > bx && mX < bx + width && mY > by && mY < by + height
+
     override fun mouseReleased()
     {
         super.mouseReleased()
 
+        clickedButton?.takeIf {
+            // ControlP5 does not click a button when the mouse has moved
+            // even just a little bit after pressing the mouse button.
+            // Circumvent that by checking if the mouse moved and if its
+            // button was released inside the button (box).
+            hasMouseDragged && boxContains(it.position[0], it.position[1],
+                it.width.toFloat(), it.height.toFloat(),
+                mouseX.toFloat(), mouseY.toFloat())
+        } ?.let { button ->
+            // Cannot access the on click handler of the button, nor
+            // click it programmatically in any way. Thus
+            buttonToListener[button]?.invoke()
+            clickedButton = null
+            return
+        }
+
         clickedNode?.takeIf {
             // We're not selecting a node if it was dragged around.
             // Also, only select nodes with the right mouse button.
-            !isDragging
+            !isDragging && clickedButton == null
         } ?.let { clicked ->
+            // Do not delete nodes nor connect or select nodes when solving.
+            if (isSolving) {
+                if (isSolvingWithPrim && solutionSteps == null) {
+                    primRootNode = clicked
+                    solutionSteps = PrimStepwiseMST(graph, clicked.id)
+                        .steps().toList()
+                    nextStepButton.show()
+                    previousStepButton.show()
+                    informationTextLabel.setText("")
+                }
+                else if (isSolvingWithKruskal && solutionSteps == null) {
+                    solutionSteps = KruskalStepwiseMST(graph).steps().toList()
+                }
+                return@let
+            }
+
             if (mouseButton == RIGHT) {
                 // Remove all references to the node.
                 nodeList.remove(clicked)
@@ -569,9 +939,9 @@ class GraphApplet(val config: Config) : PApplet()
                 val iterator = edgeSet.iterator()
                 for (edge in iterator)
                     if (edge.hasNode(clicked)) {
-                        edgeMap.remove(edge.textField.id)
+                        edgeTextFieldMap.remove(edge.textField!!.id)
                         iterator.remove()
-                        cp5.remove(edge.textField.name)
+                        cp5.remove(edge.textField!!.name)
                     }
 
                 return@let
@@ -587,15 +957,20 @@ class GraphApplet(val config: Config) : PApplet()
                         // TODO: Improve this.
                         val actualEdge = edgeSet.find { it == edge } !!
 
-                        cp5.remove(actualEdge.textField.name)
+                        cp5.remove(actualEdge.textField!!.name)
                         edgeSet.remove(actualEdge)
+                        edgeMap.remove(edge.first.id to edge.second.id)
+                        edgeMap.remove(edge.second.id to edge.first.id)
                         graph.removeEdge(actualEdge.first.id to actualEdge.second.id)
                     }
                     false -> {
+                        edge.textField = createTextField()
                         edgeSet.add(edge)
-                        edge.textField.isFocus = true
+                        edgeMap[edge.first.id to edge.second.id] = edge
+                        edgeMap[edge.second.id to edge.first.id] = edge
+                        edge.textField!!.isFocus = true
                         graph.addUndirectedEdge(edge.first.id, edge.second.id)
-                        edgeMap[edge.textField.id] = edge
+                        edgeTextFieldMap[edge.textField!!.id] = edge
                     }
                 }
 
@@ -612,15 +987,18 @@ class GraphApplet(val config: Config) : PApplet()
             highlightedNode = it
 
             graph.addVertex(it.id)
-            // nodeMap[it.id] = it
+            nodeMap[it.id] = it
         }
+
         createdNode = null
         clickedNode = null
         clickedTextfieldEdge = null
+        clickedButton = null
 
         isDragging = false
         isScrolling = false
         isDraggingTextfield = false
+        hasMouseDragged = false
 
         clickedOffsetX = 0f
         clickedOffsetY = 0f
@@ -628,13 +1006,18 @@ class GraphApplet(val config: Config) : PApplet()
 
     override fun mouseMoved()
     {
+        if (cp5.all.any { it.isMouseOver }) {
+            highlightedNode = null
+            return
+        }
+
         val x = mouseX.toFloat()
         val y = mouseY.toFloat()
 
         highlightedNode = nodeList.firstOrNull { it.contains(x, y) }
     }
 
-    private fun scrollBy(dx: Int, dy: Int)
+    private fun scrollBy(dx: Float, dy: Float)
     {
         nodeList.forEach { node ->
             node.x += dx
@@ -642,26 +1025,29 @@ class GraphApplet(val config: Config) : PApplet()
         }
     }
 
+    private fun scrollBy(dx: Int, dy: Int)
+            = scrollBy(dx.toFloat(), dy.toFloat())
+
     /* === external stuff === */
 
     // https://www.openprocessing.org/sketch/107041/
-    fun project(p: PVector, a: PVector, b: PVector, asSegment: Boolean)
+    private fun project(p: PVector, a: PVector, b: PVector, asSegment: Boolean)
             : PVector
     {
-        val A = p.x - a.x
-        val B = p.y - a.y
-        val C = b.x - a.x
-        val D = b.y - a.y
+        val t = p.x - a.x
+        val u = p.y - a.y
+        val v = b.x - a.x
+        val w = b.y - a.y
 
-        val dot = A * C + B * D
-        val len = C * C + D * D
-        val t = dot / len
+        val dot = t * v + u * w
+        val len = v * v + w * w
+        val ratio = dot / len
 
         if (asSegment) {
-            if (t < 0) return a
-            if (t > 1) return b
+            if (ratio < 0) return a
+            if (ratio > 1) return b
         }
-        return PVector(a.x + t * C, a.y + t * D)
+        return PVector(a.x + t * v, a.y + t * w)
 
     }
 }

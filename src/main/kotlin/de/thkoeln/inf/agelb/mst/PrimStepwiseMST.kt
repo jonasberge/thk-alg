@@ -2,6 +2,7 @@ package de.thkoeln.inf.agelb.mst
 
 import de.thkoeln.inf.agelb.adt.graph.Graph
 import de.thkoeln.inf.agelb.adt.queue.IndexedPriorityQueue
+import java.util.PriorityQueue
 
 /*
  * Implementation of stepwise Prim algorithm using an indexed priority queue
@@ -37,6 +38,21 @@ class PrimStepwiseMST(
     // public representation of priorityQueue
     val queue: Set<Int> get() = priorityQueue.indices.map { value(it) }.toSet()
 
+    val queueEdges: List<Pair<Int, Int>>
+        get() {
+            queue.map { node ->
+                parent[node]
+            }
+            return listOf()
+        }
+
+    // queue representation as edges
+    val edgeQueue: List<Graph.Edge> get() = priorityQueue.indices.mapNotNull {
+        value(it).let { node ->
+            sourceGraph.getEdge(parent[node]!!, node)
+        }
+    }
+
     // public mst edges
     override fun edges() = edges.toSet()
 
@@ -63,7 +79,7 @@ class PrimStepwiseMST(
             // extract node with minimum distance from priority queue
             val inspectedNode = value(priorityQueue.poll().first)
 
-            yield(Step(StepType.NODE_INSPECT, inspectedNode))
+            // yield(Step(StepType.NODE_INSPECT, inspectedNode, queue = edgeQueue))
 
             val parentNode = parent[inspectedNode]!!
 
@@ -73,7 +89,7 @@ class PrimStepwiseMST(
                 edges.add(edge)
                 weight += edge.weight
 
-                yield(Step(StepType.NODE_SELECT, node = inspectedNode, parentNode = parentNode))
+                yield(Step(StepType.NODE_SELECT, node = inspectedNode, parentNode = parentNode, queue = edgeQueue))
             }
 
             // look for nodes neighbor's
@@ -81,14 +97,6 @@ class PrimStepwiseMST(
                 val neighbor = edge.other(inspectedNode)
                 val neighborIndex = index(neighbor)
                 val distance = distTo[neighbor] ?: Double.POSITIVE_INFINITY
-
-                yield(
-                    Step(
-                        type = StepType.NEIGHBOR_INSPECT,
-                        parentNode = parent[neighbor], // current parent of neighbor, null if not visited yet
-                        node = neighbor
-                    )
-                )
 
                 if(priorityQueue.contains(neighborIndex) && edge.weight < distance) {
                     // if neighbor is in queue but with a greater distance to its parent:
@@ -102,6 +110,15 @@ class PrimStepwiseMST(
                     parent[neighbor] = inspectedNode
                     priorityQueue.insert(neighborIndex, edge.weight)
                 }
+
+                yield(
+                    Step(
+                        type = StepType.NEIGHBOR_INSPECT,
+                        parentNode = parent[neighbor], // current parent of neighbor, null if not visited yet
+                        node = neighbor,
+                        queue = edgeQueue
+                    )
+                )
             }
         }
 
@@ -114,7 +131,8 @@ class PrimStepwiseMST(
     data class Step(
         val type: StepType,
         val node: Int? = null,
-        val parentNode: Int? = null
+        val parentNode: Int? = null,
+        val queue: List<Graph.Edge> = listOf()
     ): MSTStep
 
 }

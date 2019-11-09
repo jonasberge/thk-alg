@@ -85,7 +85,7 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
 
     /** The vertices contained in this graph. */
     val vertices : Set<Int>
-        get() = vertexMapping.keys
+        get() = vertexMapping.keys.toSet()
 
     private val _edges = mutableSetOf<Edge>()
 
@@ -225,6 +225,9 @@ class Graph(vertexCapacity: Int = 0, private val incrementSteps: Int = 1)
 
     /** @see removeEdge */
     fun removeEdge(edge: Edge) = removeEdge(edge.from, edge.to)
+
+    /** Removes all nodes and edges from the graph. */
+    fun clear() = vertices.forEach { removeVertex(it) }
 
     /**
      * Returns the edge connecting two vertices.
