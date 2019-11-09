@@ -107,7 +107,7 @@ class GraphApplet(val config: Config) : PApplet()
     private val selectedEdges: MutableSet<Edge> = mutableSetOf()
     private var solutionSteps: List<MSTStep>? = null
 
-    private fun updateStepDescription(step: PrimStepwiseMST.Step)
+    private fun updateStepDescriptionPrim(step: PrimStepwiseMST.Step)
     {
         when (step.type) {
             PrimStepwiseMST.StepType.NEIGHBOR_INSPECT -> {
@@ -125,7 +125,7 @@ class GraphApplet(val config: Config) : PApplet()
 
     private fun revertStepPrim(step: PrimStepwiseMST.Step)
     {
-        updateStepDescription(step)
+        updateStepDescriptionPrim(step)
 
         when (step.type) {
             PrimStepwiseMST.StepType.NODE_SELECT -> {
@@ -138,7 +138,7 @@ class GraphApplet(val config: Config) : PApplet()
 
     private fun applyStepPrim(step: PrimStepwiseMST.Step)
     {
-        updateStepDescription(step)
+        updateStepDescriptionPrim(step)
 
         when (step.type) {
             PrimStepwiseMST.StepType.NODE_SELECT -> {
@@ -146,6 +146,44 @@ class GraphApplet(val config: Config) : PApplet()
                 selectedEdges.add(edgeMap[step.parentNode!! to step.node!!]!!)
             }
             else -> { }
+        }
+    }
+
+    private fun updateStepDescriptionKruskal(step: KruskalStepwiseMST.Step)
+    {
+        when (step.type) {
+            KruskalStepwiseMST.StepType.EDGE_SELECT -> {
+                informationTextLabel.setText("EDGE_SELECT")
+            }
+            KruskalStepwiseMST.StepType.EDGE_INSPECT -> {
+                informationTextLabel.setText("EDGE_INSPECT")
+            }
+        }
+    }
+
+    private fun revertStepKruskal(step: KruskalStepwiseMST.Step)
+    {
+        updateStepDescriptionKruskal(step)
+
+        when (step.type) {
+            KruskalStepwiseMST.StepType.EDGE_SELECT -> {
+                // selectedNodeHistory.pop()
+            }
+            else -> { }
+        }
+    }
+
+    private fun applyStepKruskal(step: KruskalStepwiseMST.Step)
+    {
+        updateStepDescriptionKruskal(step)
+
+        when (step.type) {
+            KruskalStepwiseMST.StepType.EDGE_INSPECT -> {
+
+            }
+            KruskalStepwiseMST.StepType.EDGE_SELECT -> {
+
+            }
         }
     }
 
@@ -172,6 +210,7 @@ class GraphApplet(val config: Config) : PApplet()
             primButton.show()
             kruskalButton.show()
             informationTextLabel.hide()
+            informationTextLabel.setText("")
             loadStateButton.show()
             saveStateButton.show()
             isMstComplete = false
@@ -186,13 +225,13 @@ class GraphApplet(val config: Config) : PApplet()
 
         nextStepButton = createButton("Nächster Schritt", 0f, 0f, 150, 20) {
             solutionSteps?.let { steps ->
-                val before = solverCurrentStep
                 if (solverCurrentStep < steps.size) {
                     solverCurrentStep++
-                    if (isSolvingWithPrim) {
-                        val step = steps[solverCurrentStep - 1]
+                    val step = steps[solverCurrentStep - 1]
+                    if (isSolvingWithPrim)
                         applyStepPrim(step as PrimStepwiseMST.Step)
-                    }
+                    else if (isSolvingWithKruskal)
+                        applyStepKruskal(step as KruskalStepwiseMST.Step)
                 }
                 else {
                     isSolverDone = true
@@ -206,7 +245,6 @@ class GraphApplet(val config: Config) : PApplet()
                                 " einige Knoten nicht enthalten sind."
                     informationTextLabel.setText(text)
                 }
-                println("before:", before, "/ after:", solverCurrentStep)
                 Unit
             }
         }
@@ -218,18 +256,19 @@ class GraphApplet(val config: Config) : PApplet()
                     isSolverDone = false
                     return@let
                 }
-                val before = solverCurrentStep
                 if (solverCurrentStep > 0) {
-                    revertStepPrim(steps[solverCurrentStep - 1]
-                            as PrimStepwiseMST.Step)
+                    if (isSolvingWithPrim)
+                        revertStepPrim(steps[solverCurrentStep - 1]
+                                as PrimStepwiseMST.Step)
+                    else if (isSolvingWithKruskal)
+                        revertStepKruskal(steps[solverCurrentStep - 1]
+                                as KruskalStepwiseMST.Step)
                     solverCurrentStep--
                 }
                 if (solverCurrentStep == 0)
                     informationTextLabel.setText("Startknoten wurde ausgewählt.")
-                println("before:", before, "/ after:", solverCurrentStep)
             }
         }
-
 
         primButton = createButton("Prim's Algorithmus", 0f, 0f, 150, 20) {
             isSolvingWithPrim = true
@@ -252,20 +291,29 @@ class GraphApplet(val config: Config) : PApplet()
 
             primButton.hide()
             kruskalButton.hide()
-            nextStepButton.show()
-            previousStepButton.show()
             cancelSolveButton.show()
             informationTextLabel.show()
 
             loadStateButton.hide()
             saveStateButton.hide()
+
+            nextStepButton.show()
+            previousStepButton.show()
+
+            val solver = KruskalStepwiseMST(graph)
+            solutionSteps = solver.steps().toList()
+            isMstComplete = solver.complete
         }
 
-        saveStateButton = createButton("Graph speichern", 0f, 25f, 150, 20) {
+        saveStateButton = createButton("Graph speichern", 0f, 0f, 150, 20) {
             saveGraphState("graphs/default.ser", createGraphState())
         }
 
-        loadStateButton = createButton("Graph laden", 0f, 0f, 150, 20) {
+        saveStateButton = createButton("Graph löschen", 0f, 25f, 150, 20) {
+            resetState()
+        }
+
+        loadStateButton = createButton("Graph laden", 0f, 50f, 150, 20) {
             val state = readGraphState("graphs/default.ser")
             state?.let { applyGraphState(it) }
         }
@@ -292,8 +340,6 @@ class GraphApplet(val config: Config) : PApplet()
 
     override fun draw()
     {
-        // TODO: Move a loaded graph/forest to the center of the window.
-
         if (width != previousWidth || height != previousHeight) {
             val dx = (width - previousWidth) / 2
             val dy = (height - previousHeight) / 2
@@ -321,7 +367,7 @@ class GraphApplet(val config: Config) : PApplet()
 
             stroke(config.node.strokeColor)
             if (isSolving && primRootNode != null)
-                stroke(color(0, 40))
+                stroke(color(0, 30))
             line(start.x, start.y, end.x, end.y)
 
             noStroke()
@@ -371,73 +417,88 @@ class GraphApplet(val config: Config) : PApplet()
         if (informationTextLabel.isVisible)
             informationTextLabel.draw(this)
 
-        // === PRIM === //
+        // === ... === //
 
-        primRootNode?.let {
-            stroke(config.node.strokeColor)
-            fill(color(50, 80, 180)) // BLUE
-            it.draw(this)
-        }
+        val rootNodeBlue = color(50, 80, 180)
+        val lastSelectedNodeBlue = color(120, 180, 255)
+        val otherNodeBlue = color(80, 120, 220)
+
+        val lastSelectedNodeTokenAqua = color(200, 250, 215)
+        val neighbourNodeTokenAqua = color(lastSelectedNodeTokenAqua, 200)
+        val leastWeightEdgeAqua = color(160, 220, 195)
 
         selectedEdges.forEach { edge ->
             stroke(config.node.strokeColor)
-            fill(color(50, 80, 180)) // BLUE
+            fill(otherNodeBlue)
             edge.first.draw(this)
             edge.second.draw(this)
 
-            stroke(color(50, 80, 180)) // BLUE
+            stroke(rootNodeBlue)
             val (start, end) = edgeLineBetween(edge.first, edge.second)
             line(start.x, start.y, end.x, end.y)
         }
 
+        // === PRIM === //
+
+        primRootNode?.let {
+            stroke(config.node.strokeColor)
+            fill(rootNodeBlue)
+            it.draw(this)
+        }
+
         solutionSteps?.takeIf {
             isSolvingWithPrim && solverCurrentStep > 0
-        }?.let { steps ->
+        } ?.let { steps ->
             if (isSolverDone)
                 return@let
 
             val step = steps[solverCurrentStep - 1] as PrimStepwiseMST.Step
 
-            stroke(config.node.strokeColor)
-            when (step.type) {
-                PrimStepwiseMST.StepType.NEIGHBOR_INSPECT -> {
-                    fill(color(200, 255, 155)) // DEEP YELLOW
-                    nodeMap[step.node]?.draw(this)
-                }
-                PrimStepwiseMST.StepType.NODE_SELECT -> {
-                    fill(color(0, 255, 0)) // DEEP GREEN
-
-                    val node = nodeMap[step.node]!!
-                    node.draw(this)
-
-                    /*stroke(color(200, 200, 0))
-                    val (start, end) = edgeLineBetween(node, nodeMap[step.parentNode]!!)
-                    line(start.x, start.y, end.x, end.y)*/
-                }
-                else -> { }
-            }
-
-            stroke(color(130, 150, 0))
+            stroke(0)
             step.queue.forEach { edge ->
                 val (start, end) = edgeLineBetween(nodeMap[edge.from]!!, nodeMap[edge.to]!!)
                 line(start.x, start.y, end.x, end.y)
             }
 
             // The edge with the least weight is stored first.
-            stroke(color(200, 230, 20))
+            stroke(leastWeightEdgeAqua)
             step.queue.firstOrNull()?.let { edge ->
                 val (start, end) = edgeLineBetween(nodeMap[edge.from]!!, nodeMap[edge.to]!!)
                 line(start.x, start.y, end.x, end.y)
             }
+
+            stroke(config.node.strokeColor)
+            when (step.type) {
+                PrimStepwiseMST.StepType.NEIGHBOR_INSPECT -> {
+                    fill(neighbourNodeTokenAqua)
+                    val node = nodeMap[step.node]!!
+                    ellipse(node.x, node.y, node.radius * 0.5f, node.radius * 0.5f)
+                }
+                else -> { }
+            }
         }
+
+        // === KRUSKAL === //
+
+        solutionSteps?.takeIf {
+            isSolvingWithKruskal && solverCurrentStep > 0
+        } ?.let { steps ->
+            if (isSolverDone)
+                return@let
+
+            val step = steps[solverCurrentStep - 1] as KruskalStepwiseMST.Step
+            println(step)
+        }
+
+        // === ... === //
 
         if (selectedNodeHistory.isNotEmpty() && !isSolverDone)
             selectedNodeHistory.peek().let { node ->
                 stroke(config.node.strokeColor)
-                fill(color(230, 220, 50)) // YELLOW
+                fill(lastSelectedNodeBlue)
                 node.draw(this)
 
-                fill(color(200, 250, 215))
+                fill(lastSelectedNodeTokenAqua)
                 ellipse(node.x, node.y, node.radius, node.radius)
             }
     }
@@ -526,8 +587,8 @@ class GraphApplet(val config: Config) : PApplet()
             .setSize(50, 20)
             .setAutoClear(false)
             .setCaptionLabel("")
-            .setColorBackground(color(255, 230))
-            .setColorForeground(color(255, 230))
+            .setColorBackground(color(255, 205))
+            .setColorForeground(color(255, 205))
             .setColorValue(color(0))
             .setColorActive(color(200))
             .setColorCursor(color(0))
@@ -580,7 +641,15 @@ class GraphApplet(val config: Config) : PApplet()
         theNodeList.mapIndexed { index, node -> nodeToIndex[node] = index }
 
         val theNodeMap = mutableMapOf<Int, Int>() // node id -> node index
-        nodeMap.forEach { (id, node) -> theNodeMap[id] = nodeToIndex[node]!! }
+        nodeMap.forEach { (id, node) ->
+            try {
+                theNodeMap[id] = nodeToIndex[node]!!
+            }
+            catch (e: Exception) {
+                println(e)
+                var x = 1
+            }
+        }
 
         // edge -> (node index) to (node index)
         val edgeToNodeIndexPair = mutableMapOf<Edge, Pair<Int, Int>>()
@@ -601,7 +670,7 @@ class GraphApplet(val config: Config) : PApplet()
         return GraphState(theNodeList, theNodeMap.toMap(), theEdgeList)
     }
 
-    private fun applyGraphState(state: GraphState)
+    private fun resetState()
     {
         edgeTextFieldMap.clear()
         for (edge in edgeSet)
@@ -616,11 +685,16 @@ class GraphApplet(val config: Config) : PApplet()
         graph.clear()
 
         edgeIdCounter = 1
+        nodeIdCounter = 1
+    }
+
+    private fun applyGraphState(state: GraphState)
+    {
+        resetState()
 
         // The node id counter needs to be larger than any existing id
         // of the loaded nodes. Otherwise, if it would be reset to 1,
         // we could collide with existing nodes when creating one.
-        nodeIdCounter = 1
         for (node in state.nodeList)
             nodeIdCounter = max(nodeIdCounter, node.id)
         nodeIdCounter += 1
@@ -685,16 +759,15 @@ class GraphApplet(val config: Config) : PApplet()
 
     private fun saveGraphState(fileName: String, state: GraphState)
     {
-        val cbor = Cbor()
-        val cborData = cbor.dump(GraphState.serializer(), state)
+        val data = Cbor().dump(GraphState.serializer(), state)
         File(fileName)
             .also {
-                if(!it.exists()) {
+                if (!it.exists()) {
                     it.parentFile.mkdirs()
                     it.createNewFile()
                 }
             }
-            .writeBytes(cborData)
+            .writeBytes(data)
     }
 
     private fun readGraphState(fileName: String) : GraphState?
@@ -703,9 +776,7 @@ class GraphApplet(val config: Config) : PApplet()
         if (!file.exists())
             return null
 
-        val cbor = Cbor()
-        val cborData = file.readBytes()
-        return cbor.load(GraphState.serializer(), cborData)
+        return Cbor().load(GraphState.serializer(), file.readBytes())
     }
 
     /* == ... == */
@@ -841,10 +912,10 @@ class GraphApplet(val config: Config) : PApplet()
         val b = PVector(node2.x, node2.y)
         val aToB = PVector.sub(b, a)
 
-        aToB.setMag(node1.radius)
+        aToB.setMag(node1.radius + node1.strokeWeight)
         val start = PVector(node1.x + aToB.x, node1.y + aToB.y)
 
-        aToB.setMag(node2.radius)
+        aToB.setMag(node2.radius + node1.strokeWeight)
         val end = PVector(node2.x - aToB.x, node2.y - aToB.y)
 
         return start to end
@@ -965,15 +1036,13 @@ class GraphApplet(val config: Config) : PApplet()
                     previousStepButton.show()
                     informationTextLabel.setText("Startknoten wurde ausgewählt.")
                 }
-                else if (isSolvingWithKruskal && solutionSteps == null) {
-                    solutionSteps = KruskalStepwiseMST(graph).steps().toList()
-                }
                 return@let
             }
 
             if (mouseButton == RIGHT) {
                 // Remove all references to the node.
                 nodeList.remove(clicked)
+                nodeMap.remove(clicked.id)
                 if (highlightedNode == clicked) highlightedNode = null
                 if (selectedNode == clicked) selectedNode = null
 
