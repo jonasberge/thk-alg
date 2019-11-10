@@ -44,12 +44,12 @@ class UnionFind(elements: Set<Int>) {
         val root = current
 
         // path compression
-        /*current = element
+        current = element
         while (current != root) {
             val parent = parentMap[current]!!
             parentMap[current] = root
             current = parent
-        }*/
+        }
 
         return root
     }

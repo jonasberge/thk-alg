@@ -13,6 +13,8 @@ import java.util.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor
 import java.io.File
+import kotlin.collections.HashMap
+import kotlin.math.roundToInt
 
 private fun distSq(x1: Float, y1: Float, x2: Float, y2: Float)
         = (x1 - x2).pow(2) + (y1 - y2).pow(2)
@@ -47,6 +49,19 @@ class GraphApplet(val config: Config) : PApplet()
     fun controlEvent(event: ControlEvent)
     {
         // println(event.controller.name)
+        if (event.isController && event.controller.name == stateNameTextField.name) {
+            addStateNamePreview()
+            stateNameTextField.isFocus = false
+            return
+        }
+
+        if (event.isController && event.controller.name == stateSelectDropdown.name) {
+            val state = getSelectedGraphState() ?: return
+            removeStateNamePreview()
+            stateNameTextField.text = state.name
+            stateNameTextField.stringValue = state.name
+            return
+        }
 
         edgeTextFieldMap[event.id]?.let { edge ->
             edge.textField!!.isFocus = false
@@ -91,6 +106,10 @@ class GraphApplet(val config: Config) : PApplet()
     private lateinit var saveStateButton: Button
     private lateinit var loadStateButton: Button
     private lateinit var deleteStateButton: Button
+    private lateinit var stateNameTextField: Textfield
+    private lateinit var stateCommentTextLabel: Textlabel
+    private lateinit var stateSelectDropdown: DropdownList
+    private lateinit var checkBoxIsChangeable: CheckBox
 
     private var isMstComplete: Boolean = false
     private var isSolvingWithPrim: Boolean = false
@@ -150,6 +169,7 @@ class GraphApplet(val config: Config) : PApplet()
 
     private fun updateStepDescriptionKruskal(step: KruskalStepwiseMST.Step)
     {
+        // TODO: Proper descriptions.
         when (step.type) {
             KruskalStepwiseMST.StepType.EDGE_CYCLES -> {
                 informationTextLabel.setText("EDGE_CYCLES")
@@ -200,6 +220,54 @@ class GraphApplet(val config: Config) : PApplet()
         }
     }
 
+    private val stateDropDownDefaultValue = "Graph auswählen..."
+    private val stateNamePreviewValue = "Name des Graphen"
+    private val stateNamePreviewColor = color(140)
+    private var isStateNamePreviewed = false
+
+    private fun addStateNamePreview()
+    {
+        if (stateNameTextField.text.isNotEmpty())
+            return
+
+        stateNameTextField.text = stateNamePreviewValue
+        stateNameTextField.setColorValue(stateNamePreviewColor)
+        isStateNamePreviewed = true
+    }
+
+    private fun removeStateNamePreview()
+    {
+        if (stateNameTextField.text != stateNamePreviewValue)
+            return
+
+        stateNameTextField.text = ""
+        stateNameTextField.setColorValue(color(0))
+        isStateNamePreviewed = false
+    }
+
+    private val loadedGraphStates = mutableSetOf<GraphState>()
+
+    private fun getSelectedGraphState() : GraphState?
+    {
+        val index = stateSelectDropdown.value.roundToInt()
+        if (index >= stateSelectDropdown.items.size || index < 0)
+            return null
+
+        // This is more than weird .. but it works.
+        val hashMap = stateSelectDropdown.items[index] as HashMap<String, Any?>
+        return hashMap["value"] as GraphState
+    }
+
+    private fun getResourceAsText(path: String)
+            = object {}.javaClass.getResource(path).readText()
+
+    private val isDebugging: Boolean by lazy {
+        getResourceAsText("/is_debugging").firstOrNull()?.equals('1') ?: false
+    }
+
+    private val isLockedChecked: Boolean
+        get() = isDebugging && checkBoxIsChangeable.getItem(0).booleanValue
+
     override fun setup()
     {
         surface.setResizable(config.isResizable)
@@ -211,6 +279,8 @@ class GraphApplet(val config: Config) : PApplet()
 
         previousWidth = width
         previousHeight = height
+
+        Label.setUpperCaseDefault(false)
 
         informationTextLabel = Textlabel(cp5, "", 155, 0, 150, 20)
             .setFont(createFont("Consolas", 12f))
@@ -225,8 +295,10 @@ class GraphApplet(val config: Config) : PApplet()
             informationTextLabel.hide()
             informationTextLabel.setText("")
             loadStateButton.show()
+            stateNameTextField.show()
             saveStateButton.show()
             deleteStateButton.show()
+            stateSelectDropdown.show()
             isMstComplete = false
             isSolving = false
             isSolverDone = false
@@ -300,9 +372,12 @@ class GraphApplet(val config: Config) : PApplet()
 
             primButton.hide()
             kruskalButton.hide()
+            stateSelectDropdown.hide()
             cancelSolveButton.show()
             informationTextLabel.show()
 
+            stateCommentTextLabel.setText("")
+            stateNameTextField.hide()
             loadStateButton.hide()
             saveStateButton.hide()
             deleteStateButton.hide()
@@ -317,6 +392,9 @@ class GraphApplet(val config: Config) : PApplet()
             cancelSolveButton.show()
             informationTextLabel.show()
 
+            stateCommentTextLabel.setText("")
+            stateSelectDropdown.hide()
+            stateNameTextField.hide()
             loadStateButton.hide()
             saveStateButton.hide()
             deleteStateButton.hide()
@@ -329,18 +407,111 @@ class GraphApplet(val config: Config) : PApplet()
             isMstComplete = solver.complete
         }
 
-        saveStateButton = createButton("Graph speichern", 0f, 0f, 150, 20) {
-            saveGraphState("graphs/default.ser", createGraphState())
+        saveStateButton = createButton("Graph speichern", 155f, 0f, 150, 20) {
+            stateCommentTextLabel.setText("")
+
+            if (isStateNamePreviewed) {
+                stateCommentTextLabel.setText("Speichern fehlgeschlagen." +
+                        " Gebe einen Namen für den Graphen ein.")
+                return@createButton
+            }
+
+            val name = stateNameTextField.stringValue
+            val time = System.currentTimeMillis()
+            val state = createGraphState(name, "graphs/$time.ser", isLockedChecked)
+
+            loadedGraphStates.firstOrNull { it.name == name } ?.let { existingState ->
+                if (!isDebugging && existingState.isLocked) {
+                    stateCommentTextLabel.setText("Speichern fehlgeschlagen." +
+                            " Dieser Graph kann nicht überschrieben werden.")
+                    return@createButton
+                }
+
+                state.fileName = existingState.fileName
+                loadedGraphStates.remove(existingState)
+                stateSelectDropdown.getItem(existingState.name)["value"] = state
+            } ?: let {
+                val value = stateSelectDropdown.items.size.toFloat()
+                stateSelectDropdown.addItem(state.name, state)
+                stateSelectDropdown.value = value
+                stateSelectDropdown.setLabel(state.name)
+            }
+
+            saveGraphState(state)
+            loadedGraphStates.add(state)
         }
 
-        deleteStateButton = createButton("Graph löschen", 0f, 25f, 150, 20) {
-            resetState()
+        deleteStateButton = createButton("Löschen", 0f, 0f, 72, 20) {
+            stateCommentTextLabel.setText("")
+
+            // TODO: Move delete currently displayed graph to a different button.
+            // resetState()
+
+            val state = getSelectedGraphState() ?: return@createButton
+
+            if (!isDebugging && state.isLocked) {
+                stateCommentTextLabel.setText("Speichern fehlgeschlagen." +
+                        " Dieser Graph kann nicht gelöscht werden.")
+                return@createButton
+            }
+
+            File(state.fileName).takeIf { it.exists() } ?.delete()
+
+            loadedGraphStates.remove(state)
+            stateSelectDropdown.removeItem(state.name)
+            stateSelectDropdown.label = stateDropDownDefaultValue
+
+            stateNameTextField.clear()
+            addStateNamePreview()
         }
 
-        loadStateButton = createButton("Graph laden", 155f, 0f, 150, 20) {
-            val state = readGraphState("graphs/default.ser")
-            state?.let { applyGraphState(it) }
+        loadStateButton = createButton("Laden", 78f, 0f, 72, 20) {
+            stateCommentTextLabel.setText("")
+            val state = getSelectedGraphState() ?: return@createButton
+            applyGraphState(state)
         }
+
+        checkBoxIsChangeable = cp5.addCheckBox("overwriteable-checkbox")
+            .setPosition(310f, 29f)
+            .setSize(12, 12)
+            .setColorLabel(color(0))
+            .setFont(createFont("Consolas", 12f)) // doesn't work ?!
+            .addItem("lock - not deletable in non-debug mode", 0f)
+
+        if (!isDebugging) {
+            checkBoxIsChangeable.hide()
+        }
+
+        stateCommentTextLabel = cp5.addTextlabel("state-comment", "", 310, 0)
+            .setFont(createFont("Consolas", 12f))
+            .setColor(color(0))
+
+        stateSelectDropdown = cp5.addDropdownList(stateDropDownDefaultValue)
+            .setFont(createFont("Consolas", 12f))
+            .setPosition(0f, 25f)
+            .setBackgroundColor(color(190))
+            .setWidth(150)
+            .setItemHeight(20)
+            .setBarHeight(20)
+            .setBackgroundColor(color(60))
+            .setColorActive(color(255, 128))
+
+        stateSelectDropdown.captionLabel.style.marginTop = 3
+        stateSelectDropdown.captionLabel.style.marginLeft = 3
+
+        loadedGraphStates.addAll(readAllGraphStates("graphs/"))
+        for (state in loadedGraphStates) {
+            stateSelectDropdown.addItem(state.name, state)
+        }
+
+        // println(stateSelectDropdown.value)
+
+        stateSelectDropdown.isOpen = false
+
+        stateNameTextField = createTextField("state-name")
+        stateNameTextField.setPosition(155f, 25f)
+        stateNameTextField.setSize(150, 20)
+        addStateNamePreview()
 
         updateButtonPositions()
 
@@ -348,6 +519,7 @@ class GraphApplet(val config: Config) : PApplet()
         previousStepButton.hide()
         cancelSolveButton.hide()
         informationTextLabel.hide()
+
     }
 
     private fun updateButtonPositions()
@@ -558,11 +730,11 @@ class GraphApplet(val config: Config) : PApplet()
     }
 
     @Serializable
-    class Node(var x: Float, var y: Float,
-               private var _radius: Float,
-               private var _padding: Float,
-               var strokeWeight: Float,
-               var id: Int)
+    data class Node(var x: Float, var y: Float,
+                    private var _radius: Float,
+                    private var _padding: Float,
+                    var strokeWeight: Float,
+                    var id: Int)
     {
         var radius: Float
             get() = _radius
@@ -618,10 +790,18 @@ class GraphApplet(val config: Config) : PApplet()
 
     private var edgeIdCounter = 1
 
-    private fun createTextField() : Textfield
+    private fun createTextField(name: String = "") : Textfield
     {
-        val id = edgeIdCounter++
-        return Textfield(cp5, "textfield-$id")
+        val isNameSupplied = name.isNotEmpty() && name.isNotBlank()
+
+        var id = 0
+        var theName = name
+        if (!isNameSupplied) {
+            id = edgeIdCounter++
+            theName = "textfield-$id"
+        }
+
+        val textField = Textfield(cp5, theName)
             .setFont(createFont("Consolas", 14f))
             .setSize(50, 20)
             .setAutoClear(false)
@@ -631,7 +811,11 @@ class GraphApplet(val config: Config) : PApplet()
             .setColorValue(color(0))
             .setColorActive(color(200))
             .setColorCursor(color(0))
-            .setId(id)
+
+        if (!isNameSupplied)
+            textField.id = id
+
+        return textField
     }
 
     @Serializable
@@ -665,17 +849,22 @@ class GraphApplet(val config: Config) : PApplet()
      */
 
     @Serializable
-    class GraphState(val nodeList: List<Node>,
+    class GraphState(val name: String,
+                     var fileName: String,
+                     val isLocked: Boolean,
+                     val nodeList: List<Node>,
                      val nodeMap: Map<Int, Int>,
                      val edgeList: List<GraphState.Edge>)
     {
         @Serializable
-        class Edge(val first: Int, val second: Int, val weight: Double)
+        class Edge(val first: Int, val second: Int, val weight: Double,
+                   val textFieldOffsetRatio: Float)
     }
 
-    private fun createGraphState() : GraphState
+    private fun createGraphState(name: String, fileName: String,
+                                 isLocked: Boolean) : GraphState
     {
-        val theNodeList = nodeList.toList() // index -> node
+        val theNodeList = nodeList.map { it.copy() } // index -> node
         val nodeToIndex = mutableMapOf<Node, Int>() // node -> node index
         theNodeList.mapIndexed { index, node -> nodeToIndex[node] = index }
 
@@ -695,10 +884,11 @@ class GraphApplet(val config: Config) : PApplet()
             val graphEdge = graph.getEdge(edge.first.id to edge.second.id)!!
             val indexPair = edgeToNodeIndexPair[edge]!!
             theEdgeList.add(GraphState.Edge(indexPair.first,
-                indexPair.second, graphEdge.weight))
+                indexPair.second, graphEdge.weight, edge.textFieldOffsetRatio))
         }
 
-        return GraphState(theNodeList, theNodeMap.toMap(), theEdgeList)
+        return GraphState(name, fileName, isLocked,
+            theNodeList, theNodeMap.toMap(), theEdgeList)
     }
 
     private fun resetState()
@@ -733,17 +923,19 @@ class GraphApplet(val config: Config) : PApplet()
         // Add all nodes.
         // nodeList.addAll(state.nodeList)
         for (node in state.nodeList) {
-            nodeList.add(node)
+            nodeList.add(node.copy())
             graph.addVertex(node.id)
         }
         for ((id, index) in state.nodeMap)
-            nodeMap[id] = state.nodeList[index]
+            nodeMap[id] = nodeList[index]
 
         // Recreate all edges.
         for (stateEdge in state.edgeList) {
             val first = nodeList[stateEdge.first]
             val second = nodeList[stateEdge.second]
             val edge = Edge(first to second)
+
+            edge.textFieldOffsetRatio = stateEdge.textFieldOffsetRatio
 
             edge.textField = createTextField()
             edge.textField!!.text = stateEdge.weight.toString()
@@ -788,10 +980,10 @@ class GraphApplet(val config: Config) : PApplet()
         scrollBy(xOffset, yOffset)
     }
 
-    private fun saveGraphState(fileName: String, state: GraphState)
+    private fun saveGraphState(state: GraphState)
     {
         val data = Cbor().dump(GraphState.serializer(), state)
-        File(fileName)
+        File(state.fileName)
             .also {
                 if (!it.exists()) {
                     it.parentFile.mkdirs()
@@ -807,7 +999,30 @@ class GraphApplet(val config: Config) : PApplet()
         if (!file.exists())
             return null
 
-        return Cbor().load(GraphState.serializer(), file.readBytes())
+        var state: GraphState? = null
+        try {
+            state = Cbor().load(GraphState.serializer(), file.readBytes())
+            state.fileName = fileName
+        }
+        catch (e: Exception) {
+            println("Failed to load graph file '$fileName': Invalid format.")
+            val success = file.renameTo(File(file.absolutePath + ".invalid"))
+        }
+
+        return state
+    }
+
+    private fun readAllGraphStates(directoryName: String) : List<GraphState>
+    {
+        val states = mutableListOf<GraphState>()
+
+        val dir = File(directoryName)
+        dir.walk().forEach { file ->
+            if (file.extension == "ser")
+                readGraphState(file.absolutePath)?.let { states.add(it) }
+        }
+
+        return states.toList()
     }
 
     /* == ... == */
@@ -878,6 +1093,26 @@ class GraphApplet(val config: Config) : PApplet()
         // Click on a spot where a node can be placed:
         // > single click: creates a node at that position.
 
+
+        if (stateNameTextField.isMousePressed) {
+            stateCommentTextLabel.setText("")
+            removeStateNamePreview()
+            return
+        }
+        else if (stateNameTextField.isFocus) {
+            stateNameTextField.submit()
+            return
+        }
+
+        val bx = checkBoxIsChangeable.position[0]
+        val by = checkBoxIsChangeable.position[1]
+        val w = checkBoxIsChangeable.width.toFloat()
+        val h = checkBoxIsChangeable.height.toFloat()
+        if (boxContains(bx, by, w, h, mouseX.toFloat(), mouseY.toFloat()))
+            return
+
+        if (stateSelectDropdown.isMousePressed)
+            return
 
         // Do not pass click events through if a text field is pressed.
         for (edge in edgeSet) {
@@ -1150,7 +1385,7 @@ class GraphApplet(val config: Config) : PApplet()
 
     override fun mouseMoved()
     {
-        if (cp5.all.any { it.isMouseOver }) {
+        if (cp5.all.any { it != checkBoxIsChangeable && it.isMouseOver }) {
             highlightedNode = null
             return
         }
