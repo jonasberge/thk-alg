@@ -7,7 +7,11 @@ open class UnionFind(elements: Set<Int>) {
         protected set
 
     // used to check if a mst is complete
-    val allInOneSet get() = parentMap.keys.any { size(it) == size }
+    val allInOneSet: Boolean get() {
+        val elements = parentMap.keys
+        val elementsSize = elements.size
+        return elements.any { size(it) == elementsSize }
+    }
 
     operator fun get(root: Int): Set<Int> {
         val set = mutableSetOf<Int>()
