@@ -311,9 +311,8 @@ class GraphApplet(val config: Config) : PApplet()
                             " Baum ist vollständig, d.h. alle Knoten" +
                             " sind enthalten."
                 else
-                    "Lösung gefunden - Der minimal-spannende" +
-                            " Baum ist nicht vollständig, d.h. dass" +
-                            " einige Knoten nicht enthalten sind."
+                    "Ende - Keine Lösung gefunden." +
+                            " Der Ausgangsgraph ist wahrscheinlich nicht zusammenhängend."
                 informationTextLabel.setText(text)
                 return false
             }
