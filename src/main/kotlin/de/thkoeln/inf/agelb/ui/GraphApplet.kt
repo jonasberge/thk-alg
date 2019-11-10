@@ -476,6 +476,9 @@ class GraphApplet(val config: Config) : PApplet()
             val solver = KruskalStepwiseMST(graph)
             solutionSteps = solver.steps().toList()
             isMstComplete = solver.complete
+
+            solutionSteps?.forEach { println(it) }
+            println(solver.complete)
         }
 
         saveStateButton = createButton("Graph speichern", 155f, 0f, 150, 20) {
@@ -849,6 +852,14 @@ class GraphApplet(val config: Config) : PApplet()
                 ellipse(x, y, r, r)
             }
         }
+
+        if (isDebugging)
+            nodeList.forEach { node ->
+                val label = Textlabel(cp5, node.id.toString(), node.x.roundToInt() - 8, node.y.roundToInt() - 8)
+                label.setFont(createFont("Consolas", 14f))
+                label.setColorValueLabel(color(0))
+                label.draw(this)
+            }
     }
 
     private var nodeIdCounter = 1
