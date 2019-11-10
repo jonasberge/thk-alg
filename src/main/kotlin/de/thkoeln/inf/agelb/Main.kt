@@ -113,7 +113,7 @@ fun main()
     GraphApplet.run(
         GraphApplet.Config(
             width = 1920 / 2,
-            height = 1080 / 2,
+            height = 1080 * 3 / 4,
             isResizable = true,
             backgroundColor = pa.color(240),
             scrollDragTolerance = 8f,
@@ -162,7 +162,7 @@ fun main()
     val x = 1
     */
 
-
+    /*
     val graph = Graph(2, 2)
 
     graph.addUndirectedEdge(100, 4, 15.0)
@@ -189,4 +189,5 @@ fun main()
     KruskalStepwiseMST(graph).steps().forEach {
         println(it)
     }
+    */
 }

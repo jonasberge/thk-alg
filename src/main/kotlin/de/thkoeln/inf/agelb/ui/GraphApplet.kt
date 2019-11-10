@@ -56,10 +56,12 @@ class GraphApplet(val config: Config) : PApplet()
         }
 
         if (event.isController && event.controller.name == stateSelectDropdown.name) {
+            stateSelectDropdown.setLabel("")
             val state = getSelectedGraphState() ?: return
             removeStateNamePreview()
             stateNameTextField.text = state.name
             stateNameTextField.stringValue = state.name
+            isLockedChecked = state.isLocked
             return
         }
 
@@ -101,6 +103,8 @@ class GraphApplet(val config: Config) : PApplet()
 
     private lateinit var nextStepButton: Button
     private lateinit var previousStepButton: Button
+    private lateinit var toStartButton: Button
+    private lateinit var toEndButton: Button
     private lateinit var cancelSolveButton: Button
 
     private lateinit var saveStateButton: Button
@@ -169,16 +173,18 @@ class GraphApplet(val config: Config) : PApplet()
 
     private fun updateStepDescriptionKruskal(step: KruskalStepwiseMST.Step)
     {
-        // TODO: Proper descriptions.
         when (step.type) {
             KruskalStepwiseMST.StepType.EDGE_CYCLES -> {
-                informationTextLabel.setText("EDGE_CYCLES")
+                informationTextLabel.setText("Diese Kante verursacht eine" +
+                        " Schleife. Daher wird sie übersprungen.")
             }
             KruskalStepwiseMST.StepType.EDGE_SELECT -> {
-                informationTextLabel.setText("EDGE_SELECT")
+                informationTextLabel.setText("Da diese Kante keine Schleife" +
+                        " verursacht kann sie dem Wald hinzugefügt werden.")
             }
             KruskalStepwiseMST.StepType.EDGE_INSPECT -> {
-                informationTextLabel.setText("EDGE_INSPECT")
+                informationTextLabel.setText("Untersuche die Kante mit" +
+                        " dem niedrigsten Gewicht.")
             }
         }
     }
@@ -249,6 +255,10 @@ class GraphApplet(val config: Config) : PApplet()
 
     private fun getSelectedGraphState() : GraphState?
     {
+        val label = stateSelectDropdown.label
+        if (label == stateDropDownDefaultValue)
+            return null
+
         val index = stateSelectDropdown.value.roundToInt()
         if (index >= stateSelectDropdown.items.size || index < 0)
             return null
@@ -265,8 +275,95 @@ class GraphApplet(val config: Config) : PApplet()
         getResourceAsText("/is_debugging").firstOrNull()?.equals('1') ?: false
     }
 
-    private val isLockedChecked: Boolean
+    private var isLockedChecked: Boolean
         get() = isDebugging && checkBoxIsChangeable.getItem(0).booleanValue
+        set(value) { checkBoxIsChangeable.getItem(0).setState(value) }
+
+    private fun updateButtonPositions()
+    {
+        primButton.position[1] = height - 20f
+        kruskalButton.position[1] = height - 20f
+
+        informationTextLabel.position[1] = height - 20f
+
+        nextStepButton.position[1] = height - 50f - 20f
+        previousStepButton.position[1] = height - 50f - 20f
+        toStartButton.position[1] = height - 25f - 20f
+        toEndButton.position[1] = height - 25f - 20f
+        cancelSolveButton.position[1] = height - 20f
+    }
+
+    private fun nextStep() : Boolean
+    {
+        solutionSteps?.let { steps ->
+            if (solverCurrentStep < steps.size) {
+                solverCurrentStep++
+                val step = steps[solverCurrentStep - 1]
+                if (isSolvingWithPrim)
+                    applyStepPrim(step as PrimStepwiseMST.Step)
+                else if (isSolvingWithKruskal)
+                    applyStepKruskal(step as KruskalStepwiseMST.Step)
+            }
+            else {
+                isSolverDone = true
+                val text: String = if (isMstComplete)
+                    "Lösung gefunden - Der minimal-spannende" +
+                            " Baum ist vollständig, d.h. alle Knoten" +
+                            " sind enthalten."
+                else
+                    "Lösung gefunden - Der minimal-spannende" +
+                            " Baum ist nicht vollständig, d.h. dass" +
+                            " einige Knoten nicht enthalten sind."
+                informationTextLabel.setText(text)
+                return false
+            }
+            Unit
+        }
+
+        return true
+    }
+
+    private fun previousStep() : Boolean
+    {
+        solutionSteps?.let { steps ->
+            if (isSolverDone) {
+                isSolverDone = false
+                val step = steps[solverCurrentStep - 1]
+                if (isSolvingWithPrim)
+                    updateStepDescriptionPrim(step as PrimStepwiseMST.Step)
+                else if (isSolvingWithKruskal)
+                    updateStepDescriptionKruskal(step as KruskalStepwiseMST.Step)
+                return@let
+            }
+            if (solverCurrentStep > 0) {
+                if (isSolvingWithPrim)
+                    revertStepPrim(steps[solverCurrentStep - 1]
+                            as PrimStepwiseMST.Step)
+                else if (isSolvingWithKruskal)
+                    revertStepKruskal(steps[solverCurrentStep - 1]
+                            as KruskalStepwiseMST.Step)
+                solverCurrentStep--
+
+                if (solverCurrentStep > 0) {
+                    val step = steps[solverCurrentStep - 1]
+                    if (isSolvingWithPrim)
+                        updateStepDescriptionPrim(step as PrimStepwiseMST.Step)
+                    else if (isSolvingWithKruskal)
+                        updateStepDescriptionKruskal(step as KruskalStepwiseMST.Step)
+                }
+            }
+            else return false
+
+            if (solverCurrentStep == 0) {
+                if (isSolvingWithPrim)
+                    informationTextLabel.setText("Startknoten wurde ausgewählt.")
+                else if (isSolvingWithKruskal)
+                    informationTextLabel.setText("")
+            }
+        }
+
+        return true
+    }
 
     override fun setup()
     {
@@ -289,6 +386,8 @@ class GraphApplet(val config: Config) : PApplet()
         cancelSolveButton = createButton("- Abbrechen -", 0f, 0f, 150, 20) {
             nextStepButton.hide()
             previousStepButton.hide()
+            toStartButton.hide()
+            toEndButton.hide()
             cancelSolveButton.hide()
             primButton.show()
             kruskalButton.show()
@@ -297,8 +396,11 @@ class GraphApplet(val config: Config) : PApplet()
             loadStateButton.show()
             stateNameTextField.show()
             saveStateButton.show()
+            primColorLegendList.forEach { it.textLabel.hide() }
+            kruskalColorLegendList.forEach { it.textLabel.hide() }
             deleteStateButton.show()
             stateSelectDropdown.show()
+            checkBoxIsChangeable.show()
             isMstComplete = false
             isSolving = false
             isSolverDone = false
@@ -309,59 +411,22 @@ class GraphApplet(val config: Config) : PApplet()
             solverCurrentStep = 0
         }
 
-        nextStepButton = createButton("Nächster Schritt", 0f, 0f, 150, 20) {
-            solutionSteps?.let { steps ->
-                if (solverCurrentStep < steps.size) {
-                    solverCurrentStep++
-                    val step = steps[solverCurrentStep - 1]
-                    if (isSolvingWithPrim)
-                        applyStepPrim(step as PrimStepwiseMST.Step)
-                    else if (isSolvingWithKruskal)
-                        applyStepKruskal(step as KruskalStepwiseMST.Step)
-                }
-                else {
-                    isSolverDone = true
-                    val text: String = if (isMstComplete)
-                        "Lösung gefunden - Der minimal-spannende" +
-                                " Baum ist vollständig, d.h. alle Knoten" +
-                                " sind enthalten."
-                    else
-                        "Lösung gefunden - Der minimal-spannende" +
-                                " Baum ist nicht vollständig, d.h. dass" +
-                                " einige Knoten nicht enthalten sind."
-                    informationTextLabel.setText(text)
-                }
-                Unit
-            }
+        toStartButton = createButton("Anfang <<", 0f, 0f, 72, 20) {
+            while (previousStep()) ;
         }
 
-        previousStepButton = createButton("Vorheriger Schritt", 0f, 0f, 150, 20) {
-            solutionSteps?.let { steps ->
-                // TODO: Differentiate between Prim and Kruskal.
-                if (isSolverDone) {
-                    isSolverDone = false
-                    return@let
-                }
-                if (solverCurrentStep > 0) {
-                    if (isSolvingWithPrim)
-                        revertStepPrim(steps[solverCurrentStep - 1]
-                                as PrimStepwiseMST.Step)
-                    else if (isSolvingWithKruskal)
-                        revertStepKruskal(steps[solverCurrentStep - 1]
-                                as KruskalStepwiseMST.Step)
-                    solverCurrentStep--
+        toEndButton = createButton(">> Ende  ", 78f, 0f, 72, 20) {
+            while (nextStep()) ;
+        }
 
-                    if (solverCurrentStep > 0) {
-                        val step = steps[solverCurrentStep - 1]
-                        if (isSolvingWithPrim)
-                            updateStepDescriptionPrim(step as PrimStepwiseMST.Step)
-                        else if (isSolvingWithKruskal)
-                            updateStepDescriptionKruskal(step as KruskalStepwiseMST.Step)
-                    }
-                }
-                if (isSolvingWithPrim && solverCurrentStep == 0)
-                    informationTextLabel.setText("Startknoten wurde ausgewählt.")
-            }
+        nextStepButton = createButton("> Vor  ", 78f, 0f, 72, 20) {
+            nextStep()
+            Unit
+        }
+
+        previousStepButton = createButton(" Zurück < ", 0f, 0f, 72, 20) {
+            previousStep()
+            Unit
         }
 
         primButton = createButton("Prim's Algorithmus", 0f, 0f, 150, 20) {
@@ -381,6 +446,8 @@ class GraphApplet(val config: Config) : PApplet()
             loadStateButton.hide()
             saveStateButton.hide()
             deleteStateButton.hide()
+            checkBoxIsChangeable.hide()
+            primColorLegendList.forEach { it.textLabel.show() }
         }
 
         kruskalButton = createButton("Kruskal's Algorithmus", 155f, 0f, 150, 20) {
@@ -398,9 +465,13 @@ class GraphApplet(val config: Config) : PApplet()
             loadStateButton.hide()
             saveStateButton.hide()
             deleteStateButton.hide()
+            checkBoxIsChangeable.hide()
+            kruskalColorLegendList.forEach { it.textLabel.show() }
 
             nextStepButton.show()
             previousStepButton.show()
+            toStartButton.show()
+            toEndButton.show()
 
             val solver = KruskalStepwiseMST(graph)
             solutionSteps = solver.steps().toList()
@@ -444,13 +515,10 @@ class GraphApplet(val config: Config) : PApplet()
         deleteStateButton = createButton("Löschen", 0f, 0f, 72, 20) {
             stateCommentTextLabel.setText("")
 
-            // TODO: Move delete currently displayed graph to a different button.
-            // resetState()
-
             val state = getSelectedGraphState() ?: return@createButton
 
             if (!isDebugging && state.isLocked) {
-                stateCommentTextLabel.setText("Speichern fehlgeschlagen." +
+                stateCommentTextLabel.setText("Löschen fehlgeschlagen." +
                         " Dieser Graph kann nicht gelöscht werden.")
                 return@createButton
             }
@@ -469,6 +537,7 @@ class GraphApplet(val config: Config) : PApplet()
             stateCommentTextLabel.setText("")
             val state = getSelectedGraphState() ?: return@createButton
             applyGraphState(state)
+            isLockedChecked = state.isLocked
         }
 
         checkBoxIsChangeable = cp5.addCheckBox("overwriteable-checkbox")
@@ -491,6 +560,7 @@ class GraphApplet(val config: Config) : PApplet()
             .setPosition(0f, 25f)
             .setBackgroundColor(color(190))
             .setWidth(150)
+            .setHeight(200)
             .setItemHeight(20)
             .setBarHeight(20)
             .setBackgroundColor(color(60))
@@ -498,15 +568,35 @@ class GraphApplet(val config: Config) : PApplet()
 
         stateSelectDropdown.captionLabel.style.marginTop = 3
         stateSelectDropdown.captionLabel.style.marginLeft = 3
+        stateSelectDropdown.isOpen = false
 
         loadedGraphStates.addAll(readAllGraphStates("graphs/"))
         for (state in loadedGraphStates) {
             stateSelectDropdown.addItem(state.name, state)
         }
 
-        // println(stateSelectDropdown.value)
+        primColorLegendList = listOf(
+            // Edges
+            ColorLegendEntry("Eine vom Algorithmus ignorierte Kante", invisibleEdgeColor, 30f, 5f, 10f, true),
+            ColorLegendEntry("Kante in der Prioritätswarteschlange", visibleEdgeColor, 30f, 30f, 10f, true),
+            ColorLegendEntry("Kante in der Warteschlange mit geringstem Gewicht", leastWeightEdgeAqua, 30f, 55f, 10f, true),
+            ColorLegendEntry("Kante welche zum minimal-spannenden Baum gehört", rootNodeBlue, 30f, 80f, 10f, true),
+            // Nodes
+            ColorLegendEntry("Wurzel- bzw. Startknoten", rootNodeBlue, 400f, 5f, 16f),
+            ColorLegendEntry("Knoten des minimal-spannenden Baums", otherNodeBlue, 400f, 30f, 16f),
+            ColorLegendEntry("Zuletzt untersuchter Knoten", lastSelectedNodeBlue, 400f, 55f, 16f),
+            ColorLegendEntry("", lastSelectedNodeTokenAqua, 400f, 55f, 10f),
+            ColorLegendEntry("Aktuell untersuchter Nachbar", neighbourNodeTokenAqua, 400f, 80f, 10f)
+        )
 
-        stateSelectDropdown.isOpen = false
+        kruskalColorLegendList = listOf(
+            ColorLegendEntry("", rootNodeBlue, 30f, 5f, 16f),
+            ColorLegendEntry("Knoten/Kante des minimal-spannenden Baums", otherNodeBlue, 50f, 5f, 10f, true),
+            ColorLegendEntry("", lastSelectedNodeBlue, 30f, 30f, 6f),
+            ColorLegendEntry("Aktuell untersuchte Kante", lastSelectedNodeBlue, 30f, 30f, 10f, true),
+            ColorLegendEntry("", cyclingEdgeColorRed, 30f, 55f, 6f),
+            ColorLegendEntry("Kante welche einen Zyklus verursacht", cyclingEdgeColorRed, 30f, 55f, 10f, true)
+        )
 
         stateNameTextField = createTextField("state-name")
         stateNameTextField.setPosition(155f, 25f)
@@ -517,22 +607,44 @@ class GraphApplet(val config: Config) : PApplet()
 
         nextStepButton.hide()
         previousStepButton.hide()
+        toStartButton.hide()
+        toEndButton.hide()
         cancelSolveButton.hide()
         informationTextLabel.hide()
-
+        primColorLegendList.forEach { it.textLabel.hide() }
+        kruskalColorLegendList.forEach { it.textLabel.hide() }
     }
 
-    private fun updateButtonPositions()
+    private var colorLegendIdCounter = 1
+
+    inner class ColorLegendEntry(val description: String, val color: Int,
+                                 val x: Float, val y: Float, val radius: Float,
+                                 val isLine: Boolean = false,
+                                 val paddingLeft: Float = 30f)
     {
-        primButton.position[1] = height - 20f
-        kruskalButton.position[1] = height - 20f
-
-        informationTextLabel.position[1] = height - 20f
-
-        nextStepButton.position[1] = height - 50f - 20f
-        previousStepButton.position[1] = height - 25f - 20f
-        cancelSolveButton.position[1] = height - 20f
+        val textLabel = cp5
+            .addTextlabel("colleg-${ colorLegendIdCounter++ }", description)
+            .setFont(createFont("Consolas", 12f))
+            .setPosition(x, y + colorLegendTextLabelOffset)
+            .setColorValueLabel(color(0))
+            .setColorActive(color)
     }
+
+    private val colorLegendTextLabelOffset = 3f
+    private lateinit var primColorLegendList: List<ColorLegendEntry>
+    private lateinit var kruskalColorLegendList: List<ColorLegendEntry>
+
+    private val rootNodeBlue = color(30, 70, 180)
+    private val lastSelectedNodeBlue = color(120, 180, 255)
+    private val otherNodeBlue = color(80, 120, 220)
+    private val invisibleEdgeColor = color(200)
+    private val visibleEdgeColor = color(0)
+
+    private val lastSelectedNodeTokenAqua = color(200, 250, 215)
+    private val neighbourNodeTokenAqua = color(lastSelectedNodeTokenAqua, 200)
+    private val leastWeightEdgeAqua = color(160, 220, 195)
+
+    private val cyclingEdgeColorRed = color(255, 80, 15)
 
     override fun draw()
     {
@@ -563,7 +675,7 @@ class GraphApplet(val config: Config) : PApplet()
 
             stroke(config.node.strokeColor)
             if (isSolvingWithPrim && primRootNode != null || isSolvingWithKruskal)
-                stroke(color(0, 30))
+                stroke(invisibleEdgeColor)
             line(start.x, start.y, end.x, end.y)
 
             noStroke()
@@ -615,14 +727,6 @@ class GraphApplet(val config: Config) : PApplet()
 
         // === ... === //
 
-        val rootNodeBlue = color(50, 80, 180)
-        val lastSelectedNodeBlue = color(120, 180, 255)
-        val otherNodeBlue = color(80, 120, 220)
-
-        val lastSelectedNodeTokenAqua = color(200, 250, 215)
-        val neighbourNodeTokenAqua = color(lastSelectedNodeTokenAqua, 200)
-        val leastWeightEdgeAqua = color(160, 220, 195)
-
         selectedEdges.forEach { edge ->
             stroke(config.node.strokeColor)
             fill(otherNodeBlue)
@@ -650,7 +754,7 @@ class GraphApplet(val config: Config) : PApplet()
 
             val step = steps[solverCurrentStep - 1] as PrimStepwiseMST.Step
 
-            stroke(0)
+            stroke(visibleEdgeColor)
             step.queue.forEach { edge ->
                 val (start, end) = edgeLineBetween(nodeMap[edge.from]!!, nodeMap[edge.to]!!)
                 line(start.x, start.y, end.x, end.y)
@@ -689,13 +793,24 @@ class GraphApplet(val config: Config) : PApplet()
             if (inspectedEdgeHistory.isNotEmpty() && (isInspecting || isCycling))
                 inspectedEdgeHistory.peek().let { edge ->
                     stroke(config.node.strokeColor)
-                    fill(lastSelectedNodeBlue)
-                    edge.first.draw(this)
-                    edge.second.draw(this)
+                    val theColor = if (isInspecting) lastSelectedNodeBlue else cyclingEdgeColorRed
+                    fill(theColor)
+                    if (isInspecting || isCycling) {
+                        val n1 = edge.first
+                        val n2 = edge.second
+                        ellipse(n1.x, n1.y, n1.radius, n1.radius)
+                        ellipse(n2.x, n2.y, n2.radius, n2.radius)
+                    }
+                    else {
+                        edge.first.draw(this)
+                        edge.second.draw(this)
+                    }
 
                     val (start, end) = edgeLineBetween(edge.first, edge.second)
 
-                    stroke(if (isInspecting) lastSelectedNodeBlue else color(240, 40, 20))
+                    stroke(color(0))
+                    line(start.x, start.y, end.x, end.y)
+                    stroke(theColor)
                     line(start.x, start.y, end.x, end.y)
                 }
         }
@@ -712,6 +827,28 @@ class GraphApplet(val config: Config) : PApplet()
                 fill(lastSelectedNodeTokenAqua)
                 ellipse(node.x, node.y, node.radius, node.radius)
             }
+
+        if (isSolving) {
+            val list = if (isSolvingWithPrim) primColorLegendList else kruskalColorLegendList
+            list.forEach { entry ->
+                val x = entry.x - entry.paddingLeft / 2
+                val y = entry.y + entry.textLabel.height / 2
+                var r = entry.radius
+
+                if (entry.isLine) {
+                    r /= 2
+                    stroke(color(0))
+                    line(x + r, y + r, x - r, y - r)
+                    stroke(entry.color)
+                    line(x + r, y + r, x - r, y - r)
+                    return@forEach
+                }
+
+                fill(entry.color)
+                stroke(color(0))
+                ellipse(x, y, r, r)
+            }
+        }
     }
 
     private var nodeIdCounter = 1
@@ -1006,7 +1143,7 @@ class GraphApplet(val config: Config) : PApplet()
         }
         catch (e: Exception) {
             println("Failed to load graph file '$fileName': Invalid format.")
-            val success = file.renameTo(File(file.absolutePath + ".invalid"))
+            file.renameTo(File(file.absolutePath + ".invalid"))
         }
 
         return state
@@ -1283,7 +1420,8 @@ class GraphApplet(val config: Config) : PApplet()
             // click it programmatically in any way. Thus
             buttonToListener[button]?.invoke()
             clickedButton = null
-            return
+            clickedNode = null
+            createdNode = null
         }
 
         clickedNode?.takeIf {
@@ -1300,7 +1438,10 @@ class GraphApplet(val config: Config) : PApplet()
                     isMstComplete = solver.complete
                     nextStepButton.show()
                     previousStepButton.show()
+                    toStartButton.show()
+                    toEndButton.show()
                     informationTextLabel.setText("Startknoten wurde ausgewählt.")
+                    selectedNodeHistory.push(primRootNode)
                 }
                 return@let
             }
