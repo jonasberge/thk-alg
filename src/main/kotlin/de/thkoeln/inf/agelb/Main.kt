@@ -162,7 +162,7 @@ fun main()
     val x = 1
     */
 
-    /*
+
     val graph = Graph(2, 2)
 
     graph.addUndirectedEdge(100, 4, 15.0)
@@ -189,16 +189,4 @@ fun main()
     KruskalStepwiseMST(graph).steps().forEach {
         println(it)
     }
-
-    println("\n__Prim__")
-
-    PrimStepwiseMST(graph).steps().forEach {
-        println(it)
-    }
-
-    val stepwiseMST = PrimStepwiseMST(graph)
-    stepwiseMST.steps().forEach {
-        println(it)
-        println(stepwiseMST.queue)
-    }*/
 }

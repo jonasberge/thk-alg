@@ -1,58 +1,53 @@
 package de.thkoeln.inf.agelb.adt.unionfind
 
-class UnionFind(elements: Set<Int>) {
-    private val parentMap = hashMapOf<Int, Int>()
-    private val sizeMap = hashMapOf<Int, Int>()
-    private var count = 0
+open class UnionFind(elements: Set<Int>) {
+    protected val parentMap = hashMapOf<Int, Int>()
+    protected val sizeMap = hashMapOf<Int, Int>()
+    open var size: Int = 0
+        protected set
 
-    /*
-     * Number of elements in this union find
-     */
-    val size get() = parentMap.size
+    // used to check if a mst is complete
+    val allInOneSet get() = parentMap.keys.any { size(it) == size }
 
-    /*
-     * Number of elements in the biggest set (used to check
-     */
-    val biggestSetSize get() = sizeMap.maxBy { it.value }?.key?.let { size(it) }
+    operator fun get(root: Int): Set<Int> {
+        val set = mutableSetOf<Int>()
+        for ((element, _) in parentMap) {
+            val elementRoot = find(element)
+            if(root == elementRoot) set.add(element)
+        }
+        return set.toSet()
+    }
+
+    val sets: Map<Int, Set<Int>> get() {
+        val sets = mutableMapOf<Int, HashSet<Int>>()
+        for ((element, _) in parentMap) {
+            val root = find(element)
+            sets.computeIfAbsent(root) { hashSetOf() }.add(element)
+        }
+        return sets
+    }
 
     init {
-        for (element in elements) {
-            parentMap[element] = element
-            sizeMap[element] = 1
-        }
-        count = elements.size
+        // Create own set for each element
+        elements.forEach(::addElement)
     }
 
     fun addElement(element: Int) {
+        // Create own set for element
         if(!parentMap.containsKey(element)) {
             parentMap[element] = element
             sizeMap[element] = 1
-            count++
+            size++
         }
     }
 
-    fun connected(element1: Int, element2: Int) = find(element1) == find(element2)
-    fun size(element: Int) = sizeMap[find(element)]
-
-    fun find(element: Int): Int {
-        require(parentMap.containsKey(element)) { "Element not found" }
-
-        var current = element
-
-        // find root
-        while (current != parentMap[current]) current = parentMap[current]!!
-        val root = current
-
-        // path compression
-        /*current = element
-        while (current != root) {
-            val parent = parentMap[current]!!
-            parentMap[current] = root
-            current = parent
-        }*/
-
-        return root
+    open fun find(element: Int): Int {
+        val parent = parentMap[element] ?: throw IllegalArgumentException("Element not found")
+        return if(parent != element) find(parent) else parent
     }
+
+    fun size(element: Int) = sizeMap[find(element)]
+    fun connected(element1: Int, element2: Int) = find(element1) == find(element2)
 
     fun union(element1: Int, element2: Int) {
         val parent1 = find(element1)
@@ -72,15 +67,6 @@ class UnionFind(elements: Set<Int>) {
             parentMap[parent2] = parent1
         }
 
-        count--
-    }
-
-    val sets: Map<Int, Set<Int>> get() {
-        val sets = mutableMapOf<Int, HashSet<Int>>()
-        for ((element, _) in parentMap) {
-            val root = find(element)
-            sets.computeIfAbsent(root) { hashSetOf() }.add(element)
-        }
-        return sets
+        size--
     }
 }
