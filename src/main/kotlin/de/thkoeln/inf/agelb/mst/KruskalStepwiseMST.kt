@@ -24,7 +24,10 @@ class KruskalStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
             yield(Step(StepType.EDGE_INSPECT, edge))
 
             // skip edges that would create a cycle
-            if(unionFind.connected(edge.from, edge.to)) continue
+            if(unionFind.connected(edge.from, edge.to)) {
+                yield(Step(StepType.EDGE_CYCLES, edge))
+                continue
+            }
 
             // unite vertices in unionFind
             unionFind.union(edge.from, edge.to)
@@ -46,7 +49,7 @@ class KruskalStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
             complete = true
     }
 
-    enum class StepType { EDGE_INSPECT, EDGE_SELECT }
+    enum class StepType { EDGE_CYCLES, EDGE_INSPECT, EDGE_SELECT }
 
     data class Step(
         val type: StepType,

@@ -5,7 +5,6 @@ class UnionFind(elements: Set<Int>) {
     private val sizeMap = hashMapOf<Int, Int>()
     private var count = 0
 
-
     /*
      * Number of elements in this union find
      */
@@ -45,12 +44,12 @@ class UnionFind(elements: Set<Int>) {
         val root = current
 
         // path compression
-        current = element
+        /*current = element
         while (current != root) {
             val parent = parentMap[current]!!
             parentMap[current] = root
             current = parent
-        }
+        }*/
 
         return root
     }
