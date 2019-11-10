@@ -2,6 +2,13 @@ package de.thkoeln.inf.agelb.mst
 
 import de.thkoeln.inf.agelb.adt.graph.Graph
 
+interface MST {
+    fun edges(): Iterable<Graph.Edge>
+    val weight: Double
+    val complete: Boolean
+    fun solve()
+}
+
 /*
  *  Abstract Strategy for MST Algorithm that solves in steps
  */
