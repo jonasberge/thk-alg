@@ -9,6 +9,8 @@ import controlP5.Textfield
 import controlP5.ControlEvent
 import de.thkoeln.inf.agelb.mst.*
 import controlP5.Textlabel
+import de.thkoeln.inf.agelb.mst.stepwise.KruskalStepwiseMST
+import de.thkoeln.inf.agelb.mst.stepwise.PrimStepwiseMST
 import java.util.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.cbor.Cbor

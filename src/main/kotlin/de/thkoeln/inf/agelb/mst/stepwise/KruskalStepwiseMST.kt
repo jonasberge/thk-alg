@@ -1,7 +1,9 @@
-package de.thkoeln.inf.agelb.mst
+package de.thkoeln.inf.agelb.mst.stepwise
 
 import de.thkoeln.inf.agelb.adt.graph.Graph
 import de.thkoeln.inf.agelb.adt.unionfind.EfficientUnionFind
+import de.thkoeln.inf.agelb.mst.MSTStep
+import de.thkoeln.inf.agelb.mst.StepwiseMST
 
 class KruskalStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
     override var weight = 0.0
@@ -21,13 +23,24 @@ class KruskalStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
     override fun steps() = sequence<MSTStep> {
         // go through all edges sorted by minimum weight
         for (edge in sortedEdges) {
-            yield(Step(StepType.EDGE_INSPECT, edge))
+            yield(
+                Step(
+                    StepType.EDGE_INSPECT,
+                    edge
+                )
+            )
 
             // skip edges that would create a cycle
             if(unionFind.connected(edge.from, edge.to)) {
                 val set = unionFind[unionFind.find(edge.from)]
                 val edgeSet = edges.filter { set.contains(it.from) || set.contains(it.to) }
-                yield(Step(StepType.EDGE_CYCLES, edge, edgeSet))
+                yield(
+                    Step(
+                        StepType.EDGE_CYCLES,
+                        edge,
+                        edgeSet
+                    )
+                )
                 continue
             }
 
@@ -40,7 +53,12 @@ class KruskalStepwiseMST(private val sourceGraph: Graph): StepwiseMST {
             // add edge to new graph
             edges.add(edge)
 
-            yield(Step(StepType.EDGE_SELECT, edge))
+            yield(
+                Step(
+                    StepType.EDGE_SELECT,
+                    edge
+                )
+            )
 
             // stop early if MST is already done
             if(unionFind.allInOneSet) break

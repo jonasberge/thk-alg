@@ -1,9 +1,5 @@
 package de.thkoeln.inf.agelb
 
-import controlP5.ControlP5
-import de.thkoeln.inf.agelb.adt.graph.Graph
-import de.thkoeln.inf.agelb.mst.KruskalStepwiseMST
-import de.thkoeln.inf.agelb.mst.PrimStepwiseMST
 import de.thkoeln.inf.agelb.ui.GraphApplet
 import processing.core.PApplet
 import java.io.*

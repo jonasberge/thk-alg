@@ -1,8 +1,9 @@
-package de.thkoeln.inf.agelb.mst
+package de.thkoeln.inf.agelb.mst.stepwise
 
 import de.thkoeln.inf.agelb.adt.graph.Graph
 import de.thkoeln.inf.agelb.adt.queue.IndexedPriorityQueue
-import java.util.PriorityQueue
+import de.thkoeln.inf.agelb.mst.MSTStep
+import de.thkoeln.inf.agelb.mst.StepwiseMST
 
 /*
  * Implementation of stepwise Prim algorithm using an indexed priority queue
@@ -89,7 +90,14 @@ class PrimStepwiseMST(
                 edges.add(edge)
                 weight += edge.weight
 
-                yield(Step(StepType.NODE_SELECT, node = inspectedNode, parentNode = parentNode, queue = edgeQueue))
+                yield(
+                    Step(
+                        StepType.NODE_SELECT,
+                        node = inspectedNode,
+                        parentNode = parentNode,
+                        queue = edgeQueue
+                    )
+                )
             }
 
             // look for nodes neighbor's
