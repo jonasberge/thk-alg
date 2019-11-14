@@ -1,10 +1,12 @@
-package de.thkoeln.inf.agelb.main.mst
+package de.thkoeln.inf.agelb.livecoding
 
+import de.thkoeln.inf.agelb.main.mst.MST
 import de.thkoeln.inf.agelb.main.adt.graph.Edge
 import de.thkoeln.inf.agelb.main.adt.graph.Graph
 import de.thkoeln.inf.agelb.main.adt.queue.MinPriorityQueue
 import de.thkoeln.inf.agelb.main.adt.queue.Queue
 import de.thkoeln.inf.agelb.main.adt.unionfind.UnionFind
+
 
 /**
  * [KruskalMST] repräsentiert eine konkrete Strategie
@@ -32,50 +34,29 @@ import de.thkoeln.inf.agelb.main.adt.unionfind.UnionFind
  * @property complete sagt aus ob MST vollständig ist
  */
 class KruskalMST(sourceGraph: Graph) : MST {
+    // hier kommen alle Kanten des MST rein
     private val queue = Queue<Edge>()
 
+    // hier das Gesammtgewicht des MST
     override var weight: Double = 0.0
         private set
 
+    // hier wird gespeichert ob der MST vollständig ist
     override var complete: Boolean = false
         private set
 
+    // schnittstelle um von Außen auf Kanten zuzugreifen
     override var edges = queue
         private set
 
+    // Anzahl der Knoten
     private val verticesSize = sourceGraph.verticesSize
 
     init {
         val priorityQueue = MinPriorityQueue<Edge>()
-
-        // Fülle Priority Queue mit allen Kanten
-        for (edge in sourceGraph.edges)
-            priorityQueue.insert(edge)
-
-        // Erzeuge Union Find zur Ermittlung von Zyklen
         val unionFind = UnionFind(verticesSize)
 
-        // Solange PQ Elemente hat und MST noch nicht komplett ist
-        while (priorityQueue.isNotEmpty() && edges.size < verticesSize - 1) {
-
-            // Nimm die Kante mit dem kleinsten Gewicht aus der PQ
-            val edge = priorityQueue.extractMin()
-
-            // Erzeuge Variablen für beide Enpunkte/Knoten der Kante
-            val either = edge.either()
-            val other = edge.other(either)
-
-            // Wenn Kante keinen Zyklus verursacht
-            if(!unionFind.connected(either, other)) {
-                // Vereine die Komponenten beider Knoten im Union Find
-                unionFind.union(either, other)
-
-                queue.enqueue(edge)     // Füge die Kante zu MST hinzu
-                weight += edge.weight   // Addiere Gewicht zur Gewichtsumme des MST
-            }
-        }
-
-        if(edges.size == verticesSize - 1)
-            complete = true
+        // TODO: Implementiere den Algorithmus von Kruskal
+        // Schau dir zu Hilfe unsere Wiki und Dokumentation an
     }
 }
