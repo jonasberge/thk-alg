@@ -6,9 +6,9 @@ package de.thkoeln.inf.agelb.main.adt.graph
  * Die Knoten erhalten Indexes von 0 bis [verticesSize] - 1.
  * Die ungerichteten, gewichteten Kanten werden von der Klasse [Edge] repräsentiert.
  *
- * Intern wird eine Adjäzenzliste genutzt, welche ein [Array] aus [Bag]objekten ist.
- * Für jeden Knotenindex ist ein [Bag]objekt reserviert, das mit [Edge]objekten erweitert wird.
- * Da der Graph ungerichtet ist wird das [Edge]objekt beim Hinzufügen in beide [Bag]objekte hinzugefügt.
+ * Intern wird eine Adjäzenzliste genutzt.
+ * Für jeden Knotenindex ist ein [Hashset] reserviert, das mit [Edge]objekten erweitert wird.
+ * Da der Graph ungerichtet ist wird das [Edge]objekt beim Hinzufügen in beide [HashSet]s hinzugefügt.
  * Der Iterator [edges] liefert jedoch nur ein [Edge]objekt pro Verbindung.
  *
  * Alle Operationen erfolgen (im schlimmsten Fall) in konstanter Laufzeit.
@@ -18,7 +18,7 @@ package de.thkoeln.inf.agelb.main.adt.graph
  * @property vertices die Indexes der Knoten als [IntRange]
  * @property edgesSize die Anzahl an Kanten
  * @property edges die [Kanten][Edge] als [Iterable]
- * @property adjacencyList Adjäzenzliste in Form von einem Array von [Bag]<[Edge]>objekten
+ * @property adjacencyList Adjäzenzliste in Form eines Arrays aus HashSet<Edge>
  */
 
 class Graph(val verticesSize: Int) {

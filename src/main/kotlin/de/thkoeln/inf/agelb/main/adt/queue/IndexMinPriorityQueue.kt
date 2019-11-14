@@ -240,6 +240,11 @@ class IndexMinPriorityQueue<Key: Comparable<Key>>(
         copy
     }
 
+    /**
+     * Liefert einen Iterator um aufsteigend über die Schlüssel zu iterieren.
+     *
+     * @return ein Iterator um aufsteigend über Schlüssel zu iterieren
+     */
     override fun iterator(): Iterator<Int> = HeapIterator(copy())
 
     private class HeapIterator<Key: Comparable<Key>>(val copy: IndexMinPriorityQueue<Key>): Iterator<Int> {

@@ -3,7 +3,7 @@ package de.thkoeln.inf.agelb.main.mst
 import de.thkoeln.inf.agelb.main.adt.graph.Edge
 
 /**
- * [MST] repräsentiert eine abstrakte Strategy
+ * [MST] repräsentiert eine abstrakte Strategie
  * für das Erzeugen minimaler Spannbäume.
  *
  * @property edges die für den MST ausgewählten Kanten

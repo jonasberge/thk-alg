@@ -7,7 +7,7 @@ import de.thkoeln.inf.agelb.main.adt.queue.Queue
 import kotlin.math.abs
 
 /**
- * [LazyPrimMST] repräsentiert eine konkrete Strategy
+ * [LazyPrimMST] repräsentiert eine konkrete Strategie
  * für das Erzeugen eines MST durch die lazy Variante
  * des Algorithmus von Prim.
  *
@@ -39,11 +39,14 @@ class LazyPrimMST(sourceGraph: Graph) : MST {
     private val priorityQueue = MinPriorityQueue<Edge>()
 
     init {
+        // Gehe alle Knoten durch
         for (vertex in 0 until verticesSize) {
+            // und führe
             if(!added[vertex]) prim(sourceGraph, vertex)
         }
 
-        if(edges.size == verticesSize - 1) complete = true
+        if(edges.size == verticesSize - 1)
+            complete = true
     }
 
     private fun prim(graph: Graph, start: Int) {
