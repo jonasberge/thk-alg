@@ -1,7 +1,9 @@
 package de.thkoeln.inf.agelb.main.adt.queue
 
 /**
- * [Queue] repräsentiert eine FIFO(First-In, First-Out) queue mit generisch Elementen.
+ * [Queue] repräsentiert eine FIFO(First-In, First-Out) Queue mit generischen Elementen.
+ *
+ * Intern wird eine einfach verkettete Liste verwendet.
  */
 class Queue<Item> : Collection<Item> {
     private var first: Node<Item>? = null   // beginning of queue
