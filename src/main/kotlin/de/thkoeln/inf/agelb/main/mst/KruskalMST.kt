@@ -19,7 +19,7 @@ import de.thkoeln.inf.agelb.main.adt.unionfind.UnionFind
  * werden sie zu einer [MinPriorityQueue] hinzugefügt.
  *
  * Zyklen lassen sich mit einer [UnionFind] Datenstruktur ermitteln.
- * Es wird für jeden Knoten zunächst eine eigene Komponente erzeugt.
+ * [UnionFind] erzeugt beim Initialisieren für jeden Knoten eine eigene Komponente.
  * Bei jedem Hinzufügen einer Kante werden die Komponenten beider Knoten vereint.
  * Um zu überprüfen ob eine Kante einen Zyklus verursacht
  * wird geschaut ob die beiden Knoten schon zur selben Komponente gehören.
@@ -72,5 +72,8 @@ class KruskalMST(sourceGraph: Graph) : MST {
                 weight += edge.weight   // Addiere Gewicht zur Gewichtsumme des MST
             }
         }
+
+        if(edges.size == verticesSize - 1)
+            complete = true
     }
 }
