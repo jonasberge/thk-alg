@@ -12,3 +12,8 @@ URL eingeben und clonen: `https://git.gm.fh-koeln.de/git/ALGO_2019_2020/A_Gelb_A
 Gradle Projekt importieren
 
 ![Import Gradle project](docs/import_3.png "Import Gradle Project")
+
+Präsentation und Handout
+---
+[Präsentation](docs/Präsentation.pptx)
+[Handout](docs/Handout.pdf)
