@@ -15,5 +15,5 @@ Gradle Projekt importieren
 
 Präsentation und Handout
 ---
-[Präsentation](docs/Präsentation.pptx)
+[Präsentation](docs/Pra%CC%88sentation.pptx)
 [Handout](docs/Handout.pdf)
