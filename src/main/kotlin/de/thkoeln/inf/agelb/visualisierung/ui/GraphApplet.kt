@@ -262,6 +262,7 @@ class GraphApplet(val config: Config) : PApplet()
         if (index >= stateSelectDropdown.items.size || index < 0)
             return null
 
+        @Suppress("UNCHECKED_CAST")
         // This is more than weird .. but it works.
         val hashMap = stateSelectDropdown.items[index] as HashMap<String, Any?>
         return hashMap["value"] as GraphState
@@ -271,7 +272,10 @@ class GraphApplet(val config: Config) : PApplet()
             = object {}.javaClass.getResource(path).readText()
 
     private val isDebugging: Boolean by lazy {
-        getResourceAsText("/is_debugging").firstOrNull()?.equals('1') ?: false
+        val value = getResourceAsText("/is_debugging").firstOrNull()
+        val result = value?.equals('1') ?: false
+        if (result) println("[DEBUGGING] true (first char: '$value')")
+        result
     }
 
     private var isLockedChecked: Boolean

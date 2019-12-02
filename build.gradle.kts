@@ -3,6 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     java
+    application
     kotlin("jvm") version "1.3.50"
     id("org.jetbrains.kotlin.plugin.serialization") version "1.3.50"
     id("org.jetbrains.dokka") version "0.10.0"
@@ -36,4 +37,8 @@ tasks {
         outputFormat = "html"
         outputDirectory = "$buildDir/dokka"
     }
+}
+
+configure<ApplicationPluginConvention> {
+    mainClassName = "de.thkoeln.inf.agelb.visualisierung.MainKt"
 }
