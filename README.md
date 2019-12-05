@@ -13,4 +13,11 @@
 ![URL einfügen](docs/readme/3-paste-clone-url.png)
 
 ---
+**4.** Importiere das Gradle-Projekt.
+![URL einfügen](docs/readme/4-import-gradle-project.png)
+
+---
+**5.** ...  
+
+---
 __Links__: [Präsentation](docs/Pra%CC%88sentation.pptx), [Handout](docs/Handout.pdf)
