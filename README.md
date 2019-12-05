@@ -1,6 +1,14 @@
 Algo Praktikum – A Gelb
 ---
 
+- Kopiere die URL dieser Repository in deine Zwischenablage. Den Link findest du [hier](#pull-request-area)  
+![URL der Repository kopieren.](docs/readme/1-copy-clone-url.png "URL der Repository kopieren.")
+
+
+![Importiere ein Projekt mithilfe von Version Control.](docs/readme/2-choose-version-control.png "Importiere ein Projekt mithilfe von Version Control.")
+
+
+
 Git Projekt in IntelliJ importieren
 
 ![File->Project from VC->Git](docs/import.png "Import Git Project")
