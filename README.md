@@ -1,7 +1,7 @@
 Algo Praktikum – A Gelb
 ---
 
-**1.** Kopiere die URL dieser Repository in deine Zwischenablage. Den Reiter im Bild findest du [hier](tree/master#pull-request-area).  
+**1.** Kopiere die URL dieser Repository in deine Zwischenablage. Den Reiter im Bild findest du [hier](/ALGO_2019_2020/A_Gelb_ALGO1920/tree/master#pull-request-area).  
 ![URL der Repository kopieren.](docs/readme/1-copy-clone-url.png "URL der Repository kopieren.")
 
 ---
@@ -9,7 +9,9 @@ Algo Praktikum – A Gelb
 **2.** Öffne nun IntelliJ und wähle die blau hervorgehobene Option um dieses Projekt zu importieren.
 ![Importiere ein Projekt mithilfe von Version Control.](docs/readme/2-choose-version-control.png "Importiere ein Projekt mithilfe von Version Control.")
 
+---
 
+**3.**
 
 Git Projekt in IntelliJ importieren
 
