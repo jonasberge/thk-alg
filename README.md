@@ -1,7 +1,7 @@
 Algo Praktikum – A Gelb
 ---
 
-**1.** Kopiere die URL dieser Repository in deine Zwischenablage. Den Reiter im Bild findest du [hier](/tree/master#pull-request-area).  
+**1.** Kopiere die URL dieser Repository in deine Zwischenablage. Den Reiter im Bild findest du [hier](tree/master#pull-request-area).  
 ![URL der Repository kopieren.](docs/readme/1-copy-clone-url.png "URL der Repository kopieren.")
 
 ---
