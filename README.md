@@ -47,7 +47,7 @@
 ‌‌ ‌‌ ‌‌ ‌‌ Die Oberfläche sieht unter anderem folgendermaßen aus (nachdem entsprechend navigiert wurde):  
 
 ‌‌ ‌‌ ‌‌ ‌‌ ![](docs/readme/6-prims-algorithmus.png)  
-‌‌ ‌‌ ‌‌ ‌‌ ‌‌ ‌‌ ‌‌ ‌‌ ‌‌ **`Navigation:`** `Graph auswählen... > "Bsp. Wikipedia" > Laden > Prim's Algorithmus > `*`Startknoten wählen`*` > `*`Schritte machen`*
+‌‌ ‌‌ ‌‌ ‌‌ ‌‌ ‌‌ ‌‌ ‌‌ ‌‌ **`Navigation:`** `Graph auswählen... > `__[`"Bsp. Wikipedia"`](https://de.wikipedia.org/wiki/Spannbaum)__` > Laden > Prim's Algorithmus > `*`Startknoten wählen`*` > `*`Schritte machen`*
 
 ---
 __Links__: [Präsentation](docs/Pra%CC%88sentation.pptx), [Handout](docs/Handout.pdf)
