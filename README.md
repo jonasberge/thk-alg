@@ -26,10 +26,10 @@
 
 ‌‌ ‌‌ ‌‌ ‌‌ ![Gradle Aufgaben](docs/readme/5-gradle-tasks.png)  
 
-Hier findest du eine Liste von Aufgaben (*Tasks*). Für diesen Workshop sind nur **`application/run`** und **`verification/test`**  
-interessant. Mit **`run`** führst du das Hauptprogramm aus in welchem du interaktiv Graphen erstellen, laden und abspeichern  
-und die Algorithmen von Prim und Kruskal zur Bestimmung eines minimal spannenden Baums bzw. Teilgraphen schrittweise  
-ausführen kannst. **`test`** führt unsere Tests aus mit welchen überprüft wird ob du die Live-Aufgabe richtig gelöst hast.
+‌‌ ‌‌ ‌‌ ‌‌ Hier findest du eine Liste von Aufgaben (*Tasks*). Für diesen Workshop sind nur **`application/run`** und **`verification/test`**  
+‌‌ ‌‌ ‌‌ ‌‌ interessant. Mit **`run`** führst du das Hauptprogramm aus in welchem du interaktiv Graphen erstellen, laden und abspeichern  
+‌‌ ‌‌ ‌‌ ‌‌ und die Algorithmen von Prim und Kruskal zur Bestimmung eines minimal spannenden Baums bzw. Teilgraphen schrittweise  
+‌‌ ‌‌ ‌‌ ‌‌ ausführen kannst. **`test`** führt unsere Tests aus mit welchen überprüft wird ob du die Live-Aufgabe richtig gelöst hast.
 
 ---
 __Links__: [Präsentation](docs/Pra%CC%88sentation.pptx), [Handout](docs/Handout.pdf)
