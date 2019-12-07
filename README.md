@@ -1,4 +1,5 @@
-### Algorithmik-Praktikum – Projekt des Teams "A-Gelb"
+#### _Algorithmik-Praktikum – Minimum-Cost Spanning Trees_
+
 ---
 
 **1.** Kopiere die URL dieser Repository in deine Zwischenablage. Den Reiter im Bild findest du [hier](#pull-request-area).  
